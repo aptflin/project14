@@ -1,0 +1,434 @@
+[
+    {
+        "course_id": "C001",
+        "name": "測試課程01",
+        "credits": 3,
+        "is_required": false,
+        "teacher": "教師01",
+        "max_students": 57,
+        "room_id": "R105",
+        "schedules": [
+            {
+                "day": 4,
+                "period": "2"
+            },
+            {
+                "day": 4,
+                "period": "3"
+            },
+            {
+                "day": 4,
+                "period": "4"
+            }
+        ]
+    },
+    {
+        "course_id": "C002",
+        "name": "測試課程02",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師10",
+        "max_students": 50,
+        "room_id": "R105",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "1"
+            },
+            {
+                "day": 2,
+                "period": "2"
+            },
+            {
+                "day": 2,
+                "period": "3"
+            }
+        ]
+    },
+    {
+        "course_id": "C003",
+        "name": "測試課程03",
+        "credits": 2,
+        "is_required": true,
+        "teacher": "教師09",
+        "max_students": 52,
+        "room_id": "R104",
+        "schedules": [
+            {
+                "day": 4,
+                "period": "3"
+            },
+            {
+                "day": 4,
+                "period": "4"
+            }
+        ]
+    },
+    {
+        "course_id": "C004",
+        "name": "測試課程04",
+        "credits": 2,
+        "is_required": true,
+        "teacher": "教師07",
+        "max_students": 45,
+        "room_id": "R105",
+        "schedules": [
+            {
+                "day": 5,
+                "period": "1"
+            },
+            {
+                "day": 5,
+                "period": "2"
+            }
+        ]
+    },
+    {
+        "course_id": "C005",
+        "name": "測試課程05",
+        "credits": 2,
+        "is_required": true,
+        "teacher": "教師02",
+        "max_students": 31,
+        "room_id": "R105",
+        "schedules": [
+            {
+                "day": 4,
+                "period": "8"
+            },
+            {
+                "day": 4,
+                "period": "9"
+            }
+        ]
+    },
+    {
+        "course_id": "C006",
+        "name": "測試課程06",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師10",
+        "max_students": 31,
+        "room_id": "R103",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "1"
+            },
+            {
+                "day": 2,
+                "period": "2"
+            },
+            {
+                "day": 2,
+                "period": "3"
+            }
+        ]
+    },
+    {
+        "course_id": "C007",
+        "name": "測試課程07",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師05",
+        "max_students": 48,
+        "room_id": "R104",
+        "schedules": [
+            {
+                "day": 1,
+                "period": "4"
+            },
+            {
+                "day": 1,
+                "period": "5"
+            },
+            {
+                "day": 1,
+                "period": "6"
+            }
+        ]
+    },
+    {
+        "course_id": "C008",
+        "name": "測試課程08",
+        "credits": 2,
+        "is_required": false,
+        "teacher": "教師09",
+        "max_students": 36,
+        "room_id": "R101",
+        "schedules": [
+            {
+                "day": 5,
+                "period": "5"
+            },
+            {
+                "day": 5,
+                "period": "6"
+            }
+        ]
+    },
+    {
+        "course_id": "C009",
+        "name": "測試課程09",
+        "credits": 2,
+        "is_required": true,
+        "teacher": "教師07",
+        "max_students": 56,
+        "room_id": "R101",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "2"
+            },
+            {
+                "day": 2,
+                "period": "3"
+            }
+        ]
+    },
+    {
+        "course_id": "C010",
+        "name": "測試課程10",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師05",
+        "max_students": 58,
+        "room_id": "R102",
+        "schedules": [
+            {
+                "day": 3,
+                "period": "6"
+            },
+            {
+                "day": 3,
+                "period": "7"
+            },
+            {
+                "day": 3,
+                "period": "8"
+            }
+        ]
+    },
+    {
+        "course_id": "C011",
+        "name": "測試課程11",
+        "credits": 3,
+        "is_required": false,
+        "teacher": "教師02",
+        "max_students": 50,
+        "room_id": "R103",
+        "schedules": [
+            {
+                "day": 5,
+                "period": "1"
+            },
+            {
+                "day": 5,
+                "period": "2"
+            },
+            {
+                "day": 5,
+                "period": "3"
+            }
+        ]
+    },
+    {
+        "course_id": "C012",
+        "name": "測試課程12",
+        "credits": 2,
+        "is_required": false,
+        "teacher": "教師01",
+        "max_students": 52,
+        "room_id": "R103",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "4"
+            },
+            {
+                "day": 2,
+                "period": "5"
+            }
+        ]
+    },
+    {
+        "course_id": "C013",
+        "name": "測試課程13",
+        "credits": 2,
+        "is_required": true,
+        "teacher": "教師05",
+        "max_students": 40,
+        "room_id": "R104",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "3"
+            },
+            {
+                "day": 2,
+                "period": "4"
+            }
+        ]
+    },
+    {
+        "course_id": "C014",
+        "name": "測試課程14",
+        "credits": 3,
+        "is_required": false,
+        "teacher": "教師01",
+        "max_students": 42,
+        "room_id": "R101",
+        "schedules": [
+            {
+                "day": 1,
+                "period": "2"
+            },
+            {
+                "day": 1,
+                "period": "3"
+            },
+            {
+                "day": 1,
+                "period": "4"
+            }
+        ]
+    },
+    {
+        "course_id": "C015",
+        "name": "測試課程15",
+        "credits": 3,
+        "is_required": false,
+        "teacher": "教師01",
+        "max_students": 37,
+        "room_id": "R101",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "4"
+            },
+            {
+                "day": 2,
+                "period": "5"
+            },
+            {
+                "day": 2,
+                "period": "6"
+            }
+        ]
+    },
+    {
+        "course_id": "C016",
+        "name": "測試課程16",
+        "credits": 3,
+        "is_required": false,
+        "teacher": "教師09",
+        "max_students": 31,
+        "room_id": "R101",
+        "schedules": [
+            {
+                "day": 1,
+                "period": "4"
+            },
+            {
+                "day": 1,
+                "period": "5"
+            },
+            {
+                "day": 1,
+                "period": "6"
+            }
+        ]
+    },
+    {
+        "course_id": "C017",
+        "name": "測試課程17",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師10",
+        "max_students": 34,
+        "room_id": "R103",
+        "schedules": [
+            {
+                "day": 3,
+                "period": "1"
+            },
+            {
+                "day": 3,
+                "period": "2"
+            },
+            {
+                "day": 3,
+                "period": "3"
+            }
+        ]
+    },
+    {
+        "course_id": "C018",
+        "name": "測試課程18",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師10",
+        "max_students": 46,
+        "room_id": "R102",
+        "schedules": [
+            {
+                "day": 2,
+                "period": "6"
+            },
+            {
+                "day": 2,
+                "period": "7"
+            },
+            {
+                "day": 2,
+                "period": "8"
+            }
+        ]
+    },
+    {
+        "course_id": "C019",
+        "name": "測試課程19",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師06",
+        "max_students": 57,
+        "room_id": "R104",
+        "schedules": [
+            {
+                "day": 1,
+                "period": "2"
+            },
+            {
+                "day": 1,
+                "period": "3"
+            },
+            {
+                "day": 1,
+                "period": "4"
+            }
+        ]
+    },
+    {
+        "course_id": "C020",
+        "name": "測試課程20",
+        "credits": 3,
+        "is_required": true,
+        "teacher": "教師07",
+        "max_students": 35,
+        "room_id": "R102",
+        "schedules": [
+            {
+                "day": 1,
+                "period": "7"
+            },
+            {
+                "day": 1,
+                "period": "8"
+            },
+            {
+                "day": 1,
+                "period": "9"
+            }
+        ]
+    }
+]
