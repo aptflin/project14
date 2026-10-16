@@ -1,11 +1,11 @@
 [
     {
         "room_id": "R101",
-        "capacity": 50
+        "capacity": 80
     },
     {
         "room_id": "R102",
-        "capacity": 60
+        "capacity": 50
     },
     {
         "room_id": "R103",
@@ -13,10 +13,10 @@
     },
     {
         "room_id": "R104",
-        "capacity": 80
+        "capacity": 40
     },
     {
         "room_id": "R105",
-        "capacity": 50
+        "capacity": 40
     }
 ]
