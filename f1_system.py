@@ -2,7 +2,7 @@ import json
 import os
 
 # 把 JSON 檔案讀進來；找不到檔案或內容格式不對時，就先回傳空清單。
-def load_data(fileName):
+def loadData(fileName):
     if not os.path.exists(fileName):
         return []
     try:
@@ -11,20 +11,21 @@ def load_data(fileName):
     except json.JSONDecodeError:
         print(f"錯誤：{fileName} 格式異常。")
         return []
-#把資料存回指定的 JSON 檔案
-def save_data(fileName, data):  
+
+# 把資料存回指定的 JSON 檔案
+def saveData(fileName, data):  
     with open(fileName, 'w', encoding='utf-8') as fileHandle:
         json.dump(data, fileHandle, ensure_ascii=False, indent=4)
 
 # 檢查代號是否被用過，回傳檢查結果和錯誤訊息。
-def validate_unique_id(newId, existingData, idKey):
+def validateUniqueId(newId, existingData, idKey):
     for item in existingData:
         if item.get(idKey) == newId:
             return False, f"錯誤：代號 '{newId}' 已存在，不得重複。" 
     return True, ""
 
 # 檢查學分和修課人數上限是否合理。
-def validate_course_params(credits, maxStudents):
+def validateCourseParams(credits, maxStudents):
     if not isinstance(credits, int) or credits <= 0:
         return False, "錯誤：學分必須為正整數。" 
     if not isinstance(maxStudents, int) or maxStudents < 1:
@@ -32,31 +33,31 @@ def validate_course_params(credits, maxStudents):
     return True, ""
 
 # 確認星期與節次是否合理。
-def validate_schedule(day, period):
+def validateSchedule(day, period):
     if not isinstance(day, int) or not (1 <= day <= 7):
         return False, "錯誤：星期僅限 1-7。" 
-    validPeriods = [str(i) for i in range(1, 10)] + ['a', 'b', 'c', 'A', 'B', 'C']
+    validPeriods = [str(periodNumber) for periodNumber in range(1, 10)] + ['a', 'b', 'c', 'A', 'B', 'C']
     if str(period) not in validPeriods:
         return False, "錯誤：節次僅限 1-9、a、b、c。" 
     return True, ""
 
 # 檢查是否有學生已選修該課程，若有則拒絕刪除。
-def validate_course_deletion(courseId, studentsData):
+def validateCourseDeletion(courseId, studentsData):
     for student in studentsData:
         if courseId in student.get("enrolled_courses", []):
             return False, f"錯誤：學生 {student['student_id']} 已選修，拒絕刪除。" 
     return True, ""
 
 # 檢查新課程資料和教室代號；若有錯誤回傳 False，否則把課程加入清單並回傳 True。
-def add_course(courseData, coursesList, classroomsList):
-    isValid, msg = validate_unique_id(courseData['course_id'], coursesList, 'course_id')
+def addCourse(courseData, coursesList, classroomsList):
+    isValid, msg = validateUniqueId(courseData['course_id'], coursesList, 'course_id')
     if not isValid: return False, msg
     
-    isValid, msg = validate_course_params(courseData['credits'], courseData['max_students'])
+    isValid, msg = validateCourseParams(courseData['credits'], courseData['max_students'])
     if not isValid: return False, msg
     
     for schedule in courseData.get('schedules', []):
-        isValid, msg = validate_schedule(schedule['day'], schedule['period'])
+        isValid, msg = validateSchedule(schedule['day'], schedule['period'])
         if not isValid: return False, msg
 
     validRooms = [room['room_id'] for room in classroomsList]
@@ -65,9 +66,10 @@ def add_course(courseData, coursesList, classroomsList):
 
     coursesList.append(courseData)
     return True, "新增成功"
+
 # 刪除指定課程，假如有人選修就不刪除。
-def delete_course(courseId, coursesList, studentsList):
-    isValid, msg = validate_course_deletion(courseId, studentsList)
+def deleteCourse(courseId, coursesList, studentsList):
+    isValid, msg = validateCourseDeletion(courseId, studentsList)
     if not isValid: return False, msg
     
     for index, course in enumerate(coursesList):
@@ -75,8 +77,9 @@ def delete_course(courseId, coursesList, studentsList):
             del coursesList[index]
             return True, "刪除成功"
     return False, "找不到該課程"
+
 # 計算目前幾位學生選了這門課。
-def get_enrolled_count(courseId, studentsList):
+def getEnrolledCount(courseId, studentsList):
     count = 0
     for student in studentsList:
         if courseId in student.get("enrolled_courses", []):
@@ -84,7 +87,7 @@ def get_enrolled_count(courseId, studentsList):
     return count
 
 # 查詢課程，依條件回傳符合的課程清單。
-def query_courses(coursesList, studentsList, qId=None, qTeacher=None, qDay=None, qReq=None, qVacancy=None):
+def queryCourses(coursesList, studentsList, qId=None, qTeacher=None, qDay=None, qReq=None, qVacancy=None):
     results = []
     for course in coursesList:
         if qId and qId not in course['course_id']: continue
@@ -96,7 +99,7 @@ def query_courses(coursesList, studentsList, qId=None, qTeacher=None, qDay=None,
             if str(qDay) not in days: continue
             
         if qVacancy:
-            enrolled = get_enrolled_count(course['course_id'], studentsList)
+            enrolled = getEnrolledCount(course['course_id'], studentsList)
             if course['max_students'] - enrolled <= 0: continue
             
         results.append(course)
@@ -104,9 +107,9 @@ def query_courses(coursesList, studentsList, qId=None, qTeacher=None, qDay=None,
 
 # 主程，啟動課程管理選單，使用者能新增、刪除、查詢課程或查看學生。
 def main():
-    courses = load_data('courses.json')
-    students = load_data('students.json')
-    classrooms = load_data('classrooms.json')
+    courses = loadData('courses.json')
+    students = loadData('students.json')
+    classrooms = loadData('classrooms.json')
 
     while True:
         print("\n--- 課程與學生資料管理 (F1) ---")
@@ -135,15 +138,15 @@ def main():
                 "max_students": maxStudents, "room_id": room,
                 "schedules": [{"day": day, "period": period.lower()}]
             }
-            success, msg = add_course(newCourse, courses, classrooms)
+            success, msg = addCourse(newCourse, courses, classrooms)
             print(msg)
-            if success: save_data('courses.json', courses)
+            if success: saveData('courses.json', courses)
 
         elif choice == '2':
             courseId = input("輸入欲刪除的課程代號: ")
-            success, msg = delete_course(courseId, courses, students)
+            success, msg = deleteCourse(courseId, courses, students)
             print(msg)
-            if success: save_data('courses.json', courses)
+            if success: saveData('courses.json', courses)
 
         elif choice == '3':
             print("直接按 Enter 略過該條件")
@@ -155,15 +158,17 @@ def main():
             qVacStr = input("是否須有剩餘名額 (y/n): ")
             qVac = True if qVacStr.lower() == 'y' else None
 
-            results = query_courses(courses, students, qId, qTeacher, qDay, qReq, qVac)
+            results = queryCourses(courses, students, qId, qTeacher, qDay, qReq, qVac)
             print(f"\n--- 查詢結果 (共 {len(results)} 筆) ---")
             for result in results:
-                print(f"[{result['course_id']}] {result['name']} - {result['teacher']} (學分:{result['credits']}, 上限:{result['max_students']})")
+                # 修正跨行字串語法錯誤
+                print(f"[{result['course_id']}] {result['name']} \n{result['teacher']} (學分:{result['credits']}, 上限:{result['max_students']})")
 
         elif choice == '4':
             print(f"\n--- 學生列表 (共 {len(students)} 筆) ---")
             for student in students:
-                print(f"{student['student_id']} - {student['name']} ({student['department']})")
+                # 修正跨行字串語法錯誤
+                print(f"{student['student_id']} \n{student['name']} ({student['department']})")
 
         elif choice == '0':
             print("系統結束。")
