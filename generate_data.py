@@ -1,19 +1,21 @@
 import json
 import random
 
-def generateClassrooms():
-    classrooms = [{"room_id": f"R{100 + roomOffset}", "capacity": random.choice([40, 50, 60, 80])} for roomOffset in range(1, 6)]
+
+
+def generateClassrooms(): #自動生成5間教室的測試資料
+    classrooms = [{"roomId": f"R{100 + roomOffset}", "capacity": random.choice([40, 50, 60, 80])} for roomOffset in range(1, 6)]
     with open('classrooms.json', 'w', encoding='utf-8') as fileHandle:
         json.dump(classrooms, fileHandle, ensure_ascii=False, indent=4)
     return classrooms
 
-def generateNtutStudents():
+def generateNtutStudents(): #自動生成15位學生
     deptCodes = {"310": "電機工程系", "360": "電子工程系", "590": "資訊工程系", "AC1": "互動式多媒體設計系"}
     
-    # 打亂姓名，讓每次產生的學生名單都有不同組合。
+    # 打亂姓名，讓每次產生的學生名單都有不同組合
     studentNames = [
-        "陳冠宇", "林信宏", "張家瑋", "王柏翰", "李俊傑", 
-        "黃建宏", "吳宗翰", "劉致遠", "蔡明軒", "楊哲維", 
+        "蔡徐坤", "林信宏", "張家瑋", "王柏翰", "李俊傑", 
+        "黃建宏", "吳宗翰", "鄭吉棠", "蔡明軒", "楊哲維", 
         "許家銘", "鄭宇翔", "謝承翰", "郭宇軒", "洪偉哲"
     ]
     random.shuffle(studentNames)
@@ -23,17 +25,17 @@ def generateNtutStudents():
         code = random.choice(list(deptCodes.keys()))
         studentId = f"115{code}{studentIndex:03d}"
         students.append({
-            "student_id": studentId,
+            "studentId": studentId,
             "name": studentNames[studentIndex-1],
             "department": deptCodes[code],
-            "max_credits": random.choice([20, 25, 30]),
-            "enrolled_courses": []
+            "maxCredits": random.choice([20, 25, 30]),
+            "enrolledCourses": []
         })
     with open('students.json', 'w', encoding='utf-8') as fileHandle:
         json.dump(students, fileHandle, ensure_ascii=False, indent=4)
     return students
 
-def generateCourses(classrooms):
+def generateCourses(classrooms): #自動生成20個課程的詳細資料
     courses = []
     periods = [str(i) for i in range(1, 10)] + ['a', 'b', 'c']
     
@@ -50,7 +52,7 @@ def generateCourses(classrooms):
         "吳明慧", "劉建國", "郭俊傑", "蔡佳玲", "黃信宏"
     ]
     
-    # 每門課隨機安排星期、連續節次和教室。
+    # 每門課隨機安排星期、連續節次和教室
     for courseIndex in range(1, 21):
         day = random.randint(1, 5)
         startPeriodIndex = random.randint(0, 7)
@@ -58,13 +60,13 @@ def generateCourses(classrooms):
         schedules = [{"day": day, "period": periods[startPeriodIndex + periodOffset]} for periodOffset in range(duration)]
         
         courses.append({
-            "course_id": f"C{courseIndex:03d}",
+            "courseId": f"C{courseIndex:03d}",
             "name": courseNames[courseIndex-1],
             "credits": duration,
-            "is_required": random.choice([True, False]),
+            "isRequired": random.choice([True, False]),
             "teacher": random.choice(teacherNames),
-            "max_students": random.randint(30, 60),
-            "room_id": random.choice(classrooms)["room_id"],
+            "maxStudents": random.randint(30, 60),
+            "roomId": random.choice(classrooms)["roomId"],
             "schedules": schedules
         })
         

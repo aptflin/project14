@@ -1,22 +1,27 @@
+"""
+5個教室
+    教室:
+    教室容量:
+"""
 [
     {
-        "room_id": "R101",
+        "roomId": "R101",
         "capacity": 80
     },
     {
-        "room_id": "R102",
+        "roomId": "R102",
         "capacity": 50
     },
     {
-        "room_id": "R103",
+        "roomId": "R103",
         "capacity": 40
     },
     {
-        "room_id": "R104",
+        "roomId": "R104",
         "capacity": 40
     },
     {
-        "room_id": "R105",
+        "roomId": "R105",
         "capacity": 40
     }
 ]

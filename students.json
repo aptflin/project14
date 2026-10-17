@@ -1,107 +1,116 @@
+"""
+15個學生
+    學生ID:
+    學生姓名:
+    科系:
+    學分上限:
+    已修課程:
+
+"""
 [
     {
-        "student_id": "115360001",
+        "studentId": "115360001",
         "name": "學生01",
         "department": "電子工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115310002",
+        "studentId": "115310002",
         "name": "學生02",
         "department": "電機工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115360003",
+        "studentId": "115360003",
         "name": "學生03",
         "department": "電子工程系",
-        "max_credits": 30,
-        "enrolled_courses": []
+        "maxCredits": 30,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115AC1004",
+        "studentId": "115AC1004",
         "name": "學生04",
         "department": "互動式多媒體設計系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115590005",
+        "studentId": "115590005",
         "name": "學生05",
         "department": "資訊工程系",
-        "max_credits": 20,
-        "enrolled_courses": []
+        "maxCredits": 20,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115590006",
+        "studentId": "115590006",
         "name": "學生06",
         "department": "資訊工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115AC1007",
+        "studentId": "115AC1007",
         "name": "學生07",
         "department": "互動式多媒體設計系",
-        "max_credits": 20,
-        "enrolled_courses": []
+        "maxCredits": 20,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115360008",
+        "studentId": "115360008",
         "name": "學生08",
         "department": "電子工程系",
-        "max_credits": 20,
-        "enrolled_courses": []
+        "maxCredits": 20,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115360009",
+        "studentId": "115360009",
         "name": "學生09",
         "department": "電子工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115310010",
+        "studentId": "115310010",
         "name": "學生10",
         "department": "電機工程系",
-        "max_credits": 20,
-        "enrolled_courses": []
+        "maxCredits": 20,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115AC1011",
+        "studentId": "115AC1011",
         "name": "學生11",
         "department": "互動式多媒體設計系",
-        "max_credits": 30,
-        "enrolled_courses": []
+        "maxCredits": 30,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115360012",
+        "studentId": "115360012",
         "name": "學生12",
         "department": "電子工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115360013",
+        "studentId": "115360013",
         "name": "學生13",
         "department": "電子工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115590014",
+        "studentId": "115590014",
         "name": "學生14",
         "department": "資訊工程系",
-        "max_credits": 25,
-        "enrolled_courses": []
+        "maxCredits": 25,
+        "enrolledCourses": []
     },
     {
-        "student_id": "115AC1015",
+        "studentId": "115AC1015",
         "name": "學生15",
         "department": "互動式多媒體設計系",
-        "max_credits": 20,
-        "enrolled_courses": []
+        "maxCredits": 20,
+        "enrolledCourses": []
     }
 ]

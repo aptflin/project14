@@ -1,12 +1,23 @@
+"""
+20個課程資料
+    課程ID:
+    課程名稱:
+    學分:
+    是否必修:
+    教授:
+    學生上限:
+    教室:
+    課表:
+"""
 [
     {
-        "course_id": "C001",
+        "courseId": "C001",
         "name": "人機介面",
         "credits": 3,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "蔡佳玲",
-        "max_students": 35,
-        "room_id": "R104",
+        "maxStudents": 35,
+        "roomId": "R104",
         "schedules": [
             {
                 "day": 2,
@@ -23,13 +34,13 @@
         ]
     },
     {
-        "course_id": "C002",
+        "courseId": "C002",
         "name": "計算機程式設計",
         "credits": 2,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "郭俊傑",
-        "max_students": 34,
-        "room_id": "R105",
+        "maxStudents": 34,
+        "roomId": "R105",
         "schedules": [
             {
                 "day": 1,
@@ -42,13 +53,13 @@
         ]
     },
     {
-        "course_id": "C003",
+        "courseId": "C003",
         "name": "設計管理",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "林雅婷",
-        "max_students": 33,
-        "room_id": "R102",
+        "maxStudents": 33,
+        "roomId": "R102",
         "schedules": [
             {
                 "day": 4,
@@ -61,13 +72,13 @@
         ]
     },
     {
-        "course_id": "C004",
+        "courseId": "C004",
         "name": "微積分",
         "credits": 2,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "劉建國",
-        "max_students": 39,
-        "room_id": "R102",
+        "maxStudents": 39,
+        "roomId": "R102",
         "schedules": [
             {
                 "day": 4,
@@ -80,13 +91,13 @@
         ]
     },
     {
-        "course_id": "C005",
+        "courseId": "C005",
         "name": "演算法",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "郭俊傑",
-        "max_students": 57,
-        "room_id": "R101",
+        "maxStudents": 57,
+        "roomId": "R101",
         "schedules": [
             {
                 "day": 4,
@@ -99,13 +110,13 @@
         ]
     },
     {
-        "course_id": "C006",
+        "courseId": "C006",
         "name": "作業系統",
         "credits": 2,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "郭俊傑",
-        "max_students": 35,
-        "room_id": "R105",
+        "maxStudents": 35,
+        "roomId": "R105",
         "schedules": [
             {
                 "day": 3,
@@ -118,13 +129,13 @@
         ]
     },
     {
-        "course_id": "C007",
+        "courseId": "C007",
         "name": "物件導向程式設計",
         "credits": 3,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "劉建國",
-        "max_students": 52,
-        "room_id": "R104",
+        "maxStudents": 52,
+        "roomId": "R104",
         "schedules": [
             {
                 "day": 5,
@@ -141,13 +152,13 @@
         ]
     },
     {
-        "course_id": "C008",
+        "courseId": "C008",
         "name": "離散數學",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "劉建國",
-        "max_students": 53,
-        "room_id": "R103",
+        "maxStudents": 53,
+        "roomId": "R103",
         "schedules": [
             {
                 "day": 4,
@@ -160,13 +171,13 @@
         ]
     },
     {
-        "course_id": "C009",
+        "courseId": "C009",
         "name": "人工智慧",
         "credits": 3,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "陳文印",
-        "max_students": 45,
-        "room_id": "R103",
+        "maxStudents": 45,
+        "roomId": "R103",
         "schedules": [
             {
                 "day": 3,
@@ -183,13 +194,13 @@
         ]
     },
     {
-        "course_id": "C010",
+        "courseId": "C010",
         "name": "嵌入式系統",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "陳文印",
-        "max_students": 40,
-        "room_id": "R104",
+        "maxStudents": 40,
+        "roomId": "R104",
         "schedules": [
             {
                 "day": 1,
@@ -202,13 +213,13 @@
         ]
     },
     {
-        "course_id": "C011",
+        "courseId": "C011",
         "name": "專案管理",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "陳文印",
-        "max_students": 32,
-        "room_id": "R101",
+        "maxStudents": 32,
+        "roomId": "R101",
         "schedules": [
             {
                 "day": 1,
@@ -221,13 +232,13 @@
         ]
     },
     {
-        "course_id": "C012",
+        "courseId": "C012",
         "name": "機器學習",
         "credits": 2,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "郭俊傑",
-        "max_students": 38,
-        "room_id": "R103",
+        "maxStudents": 38,
+        "roomId": "R103",
         "schedules": [
             {
                 "day": 4,
@@ -240,13 +251,13 @@
         ]
     },
     {
-        "course_id": "C013",
+        "courseId": "C013",
         "name": "資料結構",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "王建民",
-        "max_students": 44,
-        "room_id": "R101",
+        "maxStudents": 44,
+        "roomId": "R101",
         "schedules": [
             {
                 "day": 5,
@@ -259,13 +270,13 @@
         ]
     },
     {
-        "course_id": "C014",
+        "courseId": "C014",
         "name": "計算機組織",
         "credits": 3,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "蔡佳玲",
-        "max_students": 49,
-        "room_id": "R103",
+        "maxStudents": 49,
+        "roomId": "R103",
         "schedules": [
             {
                 "day": 1,
@@ -282,13 +293,13 @@
         ]
     },
     {
-        "course_id": "C015",
+        "courseId": "C015",
         "name": "網路安全",
         "credits": 3,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "劉建國",
-        "max_students": 48,
-        "room_id": "R101",
+        "maxStudents": 48,
+        "roomId": "R101",
         "schedules": [
             {
                 "day": 3,
@@ -305,13 +316,13 @@
         ]
     },
     {
-        "course_id": "C016",
+        "courseId": "C016",
         "name": "分散式系統",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "黃信宏",
-        "max_students": 57,
-        "room_id": "R102",
+        "maxStudents": 57,
+        "roomId": "R102",
         "schedules": [
             {
                 "day": 5,
@@ -324,13 +335,13 @@
         ]
     },
     {
-        "course_id": "C017",
+        "courseId": "C017",
         "name": "計算機網路",
         "credits": 2,
-        "is_required": false,
+        "isRequired": false,
         "teacher": "郭俊傑",
-        "max_students": 47,
-        "room_id": "R105",
+        "maxStudents": 47,
+        "roomId": "R105",
         "schedules": [
             {
                 "day": 5,
@@ -343,13 +354,13 @@
         ]
     },
     {
-        "course_id": "C018",
+        "courseId": "C018",
         "name": "編譯器設計",
         "credits": 3,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "郭俊傑",
-        "max_students": 49,
-        "room_id": "R102",
+        "maxStudents": 49,
+        "roomId": "R102",
         "schedules": [
             {
                 "day": 5,
@@ -366,13 +377,13 @@
         ]
     },
     {
-        "course_id": "C019",
+        "courseId": "C019",
         "name": "線性代數",
         "credits": 3,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "劉建國",
-        "max_students": 43,
-        "room_id": "R104",
+        "maxStudents": 43,
+        "roomId": "R104",
         "schedules": [
             {
                 "day": 4,
@@ -389,13 +400,13 @@
         ]
     },
     {
-        "course_id": "C020",
+        "courseId": "C020",
         "name": "資料庫系統",
         "credits": 3,
-        "is_required": true,
+        "isRequired": true,
         "teacher": "蔡佳玲",
-        "max_students": 51,
-        "room_id": "R104",
+        "maxStudents": 51,
+        "roomId": "R104",
         "schedules": [
             {
                 "day": 4,
