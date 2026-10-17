@@ -17,7 +17,7 @@ def saveData(fileName, data):
     with open(fileName, 'w', encoding='utf-8') as fileHandle:
         json.dump(data, fileHandle, ensure_ascii=False, indent=4)
 
-# 檢查代號是否被用過，回傳檢查結果和錯誤訊息。
+# 檢查代號是否被用過，回傳檢查結果和錯誤訊息。huhuiniu
 def validateUniqueId(newId, existingData, idKey):
     for item in existingData:
         if item.get(idKey) == newId:
