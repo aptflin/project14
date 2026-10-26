@@ -1,4 +1,4 @@
-"""F2：完整收集選課、活動及教室衝突；檢查函式不修改輸入資料。"""
+"""F2：完整收集選課、活動及教室衝突；檢查函式不修改輸入資料"""
 
 from f1_system import getEnrolledCount, validateSchedule
 
@@ -7,10 +7,12 @@ PERIODS = [str(number) for number in range(1, 10)] + ["a", "b", "c"]
 DAYS = "一二三四五六日"
 
 
+# 計算時段排序鍵值，依星期與節次索引進行排序
 def _slotKey(slot):
     return slot[0], PERIODS.index(slot[1])
 
 
+# 解析並驗證項目的時段設定，回傳時段集合並收集格式錯誤
 def _slots(item, errors):
     slots = set()
     for schedule in item.get("schedules", []):
@@ -25,16 +27,19 @@ def _slots(item, errors):
     return slots
 
 
+# 將課程與活動整合為包含類型標籤的統一實體清單
 def _entities(courses, activities):
     return [("course", item) for item in courses] + [
         ("activity", item) for item in activities
     ]
 
 
+# 依據項目種類動態讀取對應識別碼
 def _entityId(kind, item):
     return item["courseId" if kind == "course" else "activityId"]
 
 
+# 建立統一格式的衝突詳細資訊字典
 def _conflict(kind, day, period, otherKind, other, roomId=None):
     return {
         "type": kind, "day": day, "period": period,
@@ -43,12 +48,14 @@ def _conflict(kind, day, period, otherKind, other, roomId=None):
     }
 
 
+# 將衝突清單依據 星期 、節次 、類型 、ID 進行排序
 def _sortConflicts(conflicts):
     conflicts.sort(key=lambda item: (
         item["day"], PERIODS.index(item["period"]), item["type"], item["otherId"]
     ))
 
 
+# 核心檢測引擎、檢查學生加選/報名的學分、人數限制與時空衝突
 def _check(studentId, targetId, targetKind, courses, students, activities, classrooms):
     result = {
         "success": False, "studentId": studentId, "targetId": targetId,
@@ -65,7 +72,7 @@ def _check(studentId, targetId, targetKind, courses, students, activities, class
         errors.append(f"找不到學生：{studentId}")
     if target is None:
         errors.append(f"找不到{'課程' if targetKind == 'course' else '活動'}：{targetId}")
-    # 無法識別輸入時沒有可比較的對象；其餘限制一律獨立檢查。
+    # 無法識別輸入時沒有可比較的對象，其餘限制一律獨立檢查
     if student is None or target is None:
         return result
 
@@ -116,10 +123,12 @@ def _check(studentId, targetId, targetKind, courses, students, activities, class
     return result
 
 
+# 對外 API，檢查學生是否可以加選特定課程
 def checkEnrollment(studentId, courseId, courses, students, activities, classrooms):
     return _check(studentId, courseId, "course", courses, students, activities, classrooms)
 
 
+# 對外 API，檢查並執行學生加選課程
 def enrollCourse(studentId, courseId, courses, students, activities, classrooms):
     result = checkEnrollment(studentId, courseId, courses, students, activities, classrooms)
     if result["success"]:
@@ -128,10 +137,12 @@ def enrollCourse(studentId, courseId, courses, students, activities, classrooms)
     return result
 
 
+# 對外 API，檢查學生是否可以參加特定活動
 def checkActivityParticipation(studentId, activityId, courses, students, activities, classrooms):
     return _check(studentId, activityId, "activity", courses, students, activities, classrooms)
 
 
+# 對外 API，檢查並執行學生報名活動
 def joinActivity(studentId, activityId, courses, students, activities, classrooms):
     result = checkActivityParticipation(studentId, activityId, courses, students, activities, classrooms)
     if result["success"]:
@@ -140,6 +151,7 @@ def joinActivity(studentId, activityId, courses, students, activities, classroom
     return result
 
 
+# 對外 API，全局檢查所有課程與活動之間的教室調度排課衝突
 def checkClassroomConflicts(courses, activities):
     """檢查全部課程／活動的教室配置，不受學生是否參加影響。"""
     conflicts, errors = [], []
@@ -159,6 +171,7 @@ def checkClassroomConflicts(courses, activities):
     return {"success": not conflicts and not errors, "conflicts": conflicts, "errors": errors}
 
 
+# 格式化工具，將檢測結果字典轉譯排版為人類易讀的中文純文字報告
 def formatResult(result):
     lines = [f"學生：{result['studentId']}"]
     label = "欲加選" if result["targetKind"] == "course" else "欲參加活動"

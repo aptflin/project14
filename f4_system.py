@@ -20,6 +20,7 @@ EARLIEST_TIME = "08:10"
 LATEST_TIME = "20:00"
 
 
+# 將時段集合格式化整理為中文顯示字串
 def describeSlots(slots):
     byDay = {}
     for day, period in sorted(slots, key=lambda slot: (slot[0], PERIODS.index(slot[1]))):
@@ -29,6 +30,7 @@ def describeSlots(slots):
     )
 
 
+# 判斷兩個項目是否可能發生日期與時間交集
 def canOverlap(itemA, itemB):
     if itemA.get("recurrence", "weekly") == "weekly":
         return True
@@ -37,6 +39,7 @@ def canOverlap(itemA, itemB):
     return itemA.get("date") == itemB.get("date")
 
 
+# 將日期與具體時間轉換對齊為課表節次與星期
 def timeToSchedules(date, startTime, endTime):
     try:
         day = datetime.date.fromisoformat(date).isoweekday()
@@ -74,6 +77,7 @@ def timeToSchedules(date, startTime, endTime):
     return schedules, []
 
 
+# 計算特定活動目前已報名的學生總人數
 def getParticipantCount(activityId, studentsList):
     return sum(
         1
@@ -82,6 +86,7 @@ def getParticipantCount(activityId, studentsList):
     )
 
 
+# 驗證活動輸入資料合法性、清洗格式並計算對應時段
 def prepareActivity(activityData, existingActivities):
     errors = []
     requiredFields = [
@@ -140,6 +145,7 @@ def prepareActivity(activityData, existingActivities):
     return activity, []
 
 
+# 檢查單一教室是否滿足活動的需求
 def checkRoom(activity, room, coursesList, activitiesList):
     reasons = []
 
@@ -192,6 +198,7 @@ def checkRoom(activity, room, coursesList, activitiesList):
     return reasons
 
 
+# 遍歷所有教室，篩選出符合活動條件的可用教室清單及不合適原因
 def findSuitableRooms(activity, coursesList, activitiesList, classroomsList):
     suitable = []
     unmet = {}
@@ -204,6 +211,7 @@ def findSuitableRooms(activity, coursesList, activitiesList, classroomsList):
     return suitable, unmet
 
 
+# 新增活動 API，驗證活動格式與指定教室，合規後加入活動清單
 def addActivity(activityData, activitiesList, coursesList, classroomsList):
     activity, errors = prepareActivity(activityData, activitiesList)
     if errors:
@@ -223,6 +231,7 @@ def addActivity(activityData, activitiesList, coursesList, classroomsList):
     return True, [f"已建立活動 {activity['activityId']}，配置教室 {activity['roomId']}"], {}
 
 
+# 修改活動 API，更新已存在活動資訊，並重新驗證人數與教室衝突
 def updateActivity(activityId, changes, activitiesList, coursesList, classroomsList, studentsList):
     activityId = activityId.strip().upper()
     index = next(
@@ -265,6 +274,7 @@ def updateActivity(activityId, changes, activitiesList, coursesList, classroomsL
     return True, [f"已修改活動 {activityId}"], {}
 
 
+# 取消活動 API，把活動標記為取消，並從所有已報名學生的紀錄中移除
 def cancelActivity(activityId, activitiesList, studentsList):
     activityId = activityId.strip().upper()
     activity = next((a for a in activitiesList if a["activityId"].upper() == activityId), None)
@@ -285,6 +295,8 @@ def cancelActivity(activityId, activitiesList, studentsList):
 
     return True, [f"已取消活動 {activityId}，通知 {len(affected)} 位已報名學生"], affected
 
+
+# 查詢活動 API，依日期、類型、教室或狀態進行多條件篩選
 def queryActivities(activitiesList, qDate=None, qType=None, qRoom=None, qStatus=None):
     results = []
     for activity in activitiesList:
@@ -300,6 +312,7 @@ def queryActivities(activitiesList, qDate=None, qType=None, qRoom=None, qStatus=
     return sorted(results, key=lambda activity: activity["activityId"])
 
 
+# 報名活動 API，整合衝突與額滿檢核，通過後正式為學生完成報名
 def registerActivity(studentId, activityId, coursesList, studentsList, activitiesList, classroomsList):
     result = checkActivityParticipation(
         studentId, activityId, coursesList, studentsList, activitiesList, classroomsList
@@ -336,6 +349,8 @@ def registerActivity(studentId, activityId, coursesList, studentsList, activitie
         student.setdefault("enrolledActivities", []).append(activityId)
     return result
 
+
+# 格式化輸出，將單一活動的資訊、時間、節次與需求排版為文字報告
 def formatActivity(activity):
     day = activity["schedules"][0]["day"]
     periods = "、".join(schedule["period"] for schedule in activity["schedules"])
@@ -350,6 +365,7 @@ def formatActivity(activity):
     return "\n".join(lines)
 
 
+# 格式化輸出，將教室配置結果或失敗的原因列表排版為文字報告
 def formatAllocation(activity, classroomsList, unmet):
     if activity.get("roomId") and not unmet:
         room = next((r for r in classroomsList if r["roomId"] == activity["roomId"]), {})
