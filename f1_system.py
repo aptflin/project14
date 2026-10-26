@@ -178,16 +178,28 @@ def queryCourses(
 
 # 主程式，啟動課程與學生資料管理選單
 def main():
+    from f2_system import (
+        checkEnrollment, enrollCourse, checkActivityParticipation, joinActivity,
+        checkClassroomConflicts, formatResult, DAYS,
+    )
+
     courses = loadData("courses.json")
     students = loadData("students.json")
     classrooms = loadData("classrooms.json")
+    activities = loadData("activities.json")
 
     while True:
-        print("\n--- 課程與學生資料管理 (F1) ---")
+        print("\n--- 課程與學生資料管理 (F1)／多層次衝堂與選課檢查 (F2) ---")
         print("1. 新增課程")
         print("2. 刪除課程")
         print("3. 查詢課程")
         print("4. 列出所有學生")
+        print("5. 檢查加選（不儲存）")
+        print("6. 加選課程")
+        print("7. 檢查活動（不儲存）")
+        print("8. 參加活動")
+        print("9. 檢查所有教室衝堂")
+        print("10. 列出活動")
         print("0. 離開系統")
 
         choice = input("請選擇操作: ").strip()
@@ -300,6 +312,40 @@ def main():
                     f"{student['name']} "
                     f"({student['department']})"
                 )
+
+        elif choice in ("5", "6", "7", "8"):
+            studentId = input("學號: ").strip()
+            isCourse = choice in ("5", "6")
+            targetId = input("課程代號: " if isCourse else "活動代號: ").strip()
+            operation = {
+                "5": checkEnrollment, "6": enrollCourse,
+                "7": checkActivityParticipation, "8": joinActivity,
+            }[choice]
+            result = operation(studentId, targetId, courses, students, activities, classrooms)
+            print(formatResult(result))
+            if result["success"] and choice in ("6", "8"):
+                saveData("students.json", students)
+                print("加選成功，已儲存。" if isCourse else "活動報名成功，已儲存。")
+
+        elif choice == "9":
+            result = checkClassroomConflicts(courses, activities)
+            for number, conflict in enumerate(result["conflicts"], 1):
+                print(
+                    f"衝突{number}：教室 {conflict['roomId']} "
+                    f"星期{DAYS[conflict['day'] - 1]}第{conflict['period']}節\n"
+                    f"{conflict['targetId']} {conflict['targetName']}／"
+                    f"{conflict['otherId']} {conflict['otherName']}"
+                )
+            for message in result["errors"]:
+                print(f"錯誤：{message}")
+            if result["success"]:
+                print("所有教室配置檢查通過。")
+
+        elif choice == "10":
+            for activity in activities:
+                print(f"{activity['activityId']} {activity['name']}（教室 {activity.get('roomId', '未設定')}）")
+            if not activities:
+                print("尚無活動，請依 README 格式設定 activities.json。")
 
         elif choice == "0":
             print("系統結束。")
