@@ -200,6 +200,7 @@ def main():
         print("8. 參加活動")
         print("9. 檢查所有教室衝堂")
         print("10. 列出活動")
+        print("11. 多條件課程篩選與可行性檢查 (F5)")
         print("0. 離開系統")
 
         choice = input("請選擇操作: ").strip()
@@ -346,6 +347,10 @@ def main():
                 print(f"{activity['activityId']} {activity['name']}（教室 {activity.get('roomId', '未設定')}）")
             if not activities:
                 print("尚無活動，請依 README 格式設定 activities.json。")
+
+        elif choice == "11":
+            from scheduler.cli import run_filter
+            run_filter(courses, students, activities, classrooms)
 
         elif choice == "0":
             print("系統結束。")

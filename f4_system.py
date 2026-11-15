@@ -8,6 +8,7 @@ checkActivityParticipation；本檔只補上需求規格 3.5 的日期規則（�
 import copy
 import datetime
 import re
+from scheduler.conflict import dates_can_overlap
 
 from f2_system import DAYS, PERIODS, checkActivityParticipation, checkClassroomConflicts
 from f3_system import PERIOD_TIMES
@@ -32,11 +33,9 @@ def describeSlots(slots):
 
 # 判斷兩個項目是否可能發生日期與時間交集
 def canOverlap(itemA, itemB):
-    if itemA.get("recurrence", "weekly") == "weekly":
-        return True
-    if itemB.get("recurrence", "weekly") == "weekly":
-        return True
-    return itemA.get("date") == itemB.get("date")
+    dateA = itemA.get("date") if itemA.get("recurrence", "weekly") == "once" else None
+    dateB = itemB.get("date") if itemB.get("recurrence", "weekly") == "once" else None
+    return dates_can_overlap(dateA, dateB)
 
 
 # 將日期與具體時間轉換對齊為課表節次與星期

@@ -1,6 +1,7 @@
 """F2：完整收集選課、活動及教室衝突；檢查函式不修改輸入資料"""
 
 from f1_system import getEnrolledCount, validateSchedule
+from scheduler.conflict import legacy_overlap
 
 
 PERIODS = [str(number) for number in range(1, 10)] + ["a", "b", "c"]
@@ -29,8 +30,8 @@ def _slots(item, errors):
 
 # 將課程與活動整合為包含類型標籤的統一實體清單
 def _entities(courses, activities):
-    return [("course", item) for item in courses] + [
-        ("activity", item) for item in activities
+    return [("course", item) for item in courses if item.get("status") != "cancelled"] + [
+        ("activity", item) for item in activities if item.get("status") != "cancelled"
     ]
 
 
@@ -77,6 +78,8 @@ def _check(studentId, targetId, targetKind, courses, students, activities, class
         return result
 
     result["targetName"] = target["name"]
+    if target.get("status") == "cancelled":
+        errors.append("課程已取消。" if targetKind == "course" else "活動已取消。")
     courseIndex = {c["courseId"]: c for c in courses}
     activityIndex = {a["activityId"]: a for a in activities}
     enrolled = set(student.get("enrolledCourses", []))
@@ -112,7 +115,7 @@ def _check(studentId, targetId, targetKind, courses, students, activities, class
         sameRoom = bool(roomId) and other.get("roomId") == roomId
         if not isAttending and not sameRoom:
             continue
-        overlap = targetSlots & _slots(other, errors)
+        overlap = legacy_overlap(target, targetSlots, other, _slots(other, errors))
         for day, period in sorted(overlap, key=_slotKey):
             if isAttending:
                 conflicts.append(_conflict("student", day, period, otherKind, other))
@@ -163,7 +166,7 @@ def checkClassroomConflicts(courses, activities):
         for otherKind, other, otherSlots in entities[index + 1:]:
             if item["roomId"] != other.get("roomId"):
                 continue
-            for day, period in sorted(slots & otherSlots, key=_slotKey):
+            for day, period in legacy_overlap(item, slots, other, otherSlots):
                 conflict = _conflict("room", day, period, otherKind, other, item["roomId"])
                 conflict.update(targetId=_entityId(kind, item), targetName=item["name"])
                 conflicts.append(conflict)
