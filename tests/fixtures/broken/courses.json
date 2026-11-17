@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "records": [
+    {
+      "code": "CS101",
+      "name": "程式設計(一)",
+      "credits": 3,
+      "type": "required",
+      "teacher": "王大明",
+      "capacity": 60,
+      "room_id": "EE-101",
+      "slots": ["2-3", "2-4"],
+      "status": "open"
+    },
+    {
+      "code": "CS102",
+      "name": "缺學分欄位測試",
+      "type": "elective",
+      "teacher": "李老師",
+      "capacity": 30,
+      "room_id": "EE-101",
+      "slots": ["3-1"],
+      "status": "open"
+    },
+    {
+      "code": "CS103",
+      "name": "型別錯誤測試",
+      "credits": "three",
+      "type": "elective",
+      "teacher": "張老師",
+      "capacity": 30,
+      "room_id": "EE-101",
+      "slots": ["3-2"],
+      "status": "open"
+    },
+    {
+      "code": "CS104",
+      "name": "非法節次測試",
+      "credits": 2,
+      "type": "elective",
+      "teacher": "陳老師",
+      "capacity": 30,
+      "room_id": "EE-101",
+      "slots": ["8-3"],
+      "status": "open"
+    },
+    {
+      "code": "CS101",
+      "name": "重複代號測試",
+      "credits": 3,
+      "type": "required",
+      "teacher": "王大明",
+      "capacity": 60,
+      "room_id": "EE-101",
+      "slots": ["4-1"],
+      "status": "open"
+    }
+  ]
+}

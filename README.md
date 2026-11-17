@@ -26,6 +26,7 @@ python -B -X utf8 run_tests.py
 | `test_integration.py` | 建課→加選→課表，以及活動建立→報名→取消→課表 |
 | `test_review_regressions.py` | Code Review 發現的取消活動、單次日期及損壞活動檔案問題 |
 | `tests/test_f5_filter.py` | F5 條件聯集、全部排除原因、可行性、規格格式與選單整合 |
+| `tests/test_f6_storage_and_system.py` | F6 v1 JSON 儲存、逐筆容錯、損壞檔案備份、參照檢查及儲存錯誤 |
 
 所有測試使用記憶體或暫存資料，不會覆寫專案現有的課程、學生與活動 JSON。F1 僅測試目前已實作 API，未將尚未提供的學生 CRUD 或課程修改功能視為已完成。
 
@@ -58,6 +59,26 @@ python -m pytest tests/test_f5_filter.py -m boundary
 ```
 
 目前新增 34 個 F5 案例；完整一鍵報告可用原本的 `python run_tests.py`，會合併 F1–F5 結果。詳細介面、需求對照與範例見 [F5 說明](docs/f5.md)。
+
+## F6：系統資料儲存與載入
+
+F6 的儲存模組位於 `scheduler/storage.py`，提供 `StorageSystemData`、`load_all(data_dir)` 與 `save_all(data, data_dir)`。資料採 `schema_version: 1` 搭配 `records` 清單格式，分別處理 `classrooms.json`、`courses.json`、`students.json`、`activities.json` 和 `enrollments.json`。
+
+載入時會逐筆驗證資料、略過無效紀錄並產生 `LoadReport`；JSON 損壞時會先備份原檔。儲存時使用暫存檔與 `os.replace`，避免單一檔案寫入中途留下不完整內容。
+
+F6 測試位於 `tests/test_f6_storage_and_system.py`，涵蓋正常儲存載入、邊界值、無效資料、參照檢查及儲存失敗等情境。混合有效與錯誤課程資料的 fixture 位於 `tests/fixtures/broken/courses.json`。可單獨執行 F6 測試：
+
+```powershell
+python -m pytest -v tests/test_f6_storage_and_system.py
+```
+
+或透過專案測試 runner 執行並產生報告：
+
+```powershell
+python run_tests.py --pattern test_f6_storage_and_system.py
+```
+
+目前 F6 儲存模組尚未取代 `f1_system.py` 的既有資料讀寫流程；兩者的資料欄位與格式不同，正式串接前仍需完成相容轉換。
 
 執行系統本身使用 Python 3 標準函式庫；執行完整測試需另外安裝 `requirements.txt` 中的 pytest。請先切換到本專案目錄，再執行：
 
