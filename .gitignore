@@ -3,3 +3,7 @@ __pycache__/
 test-results/
 .test-deps/
 .pytest_cache/
+demo-data/
+*.corrupt-*
+.tmp_*.json
+.rollback_*.json

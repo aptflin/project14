@@ -503,7 +503,7 @@ def test_e11_save_all_handles_os_error_gracefully(tmp_path):
 
 @pytest.mark.error
 def test_broken_courses_fixture_keeps_valid_record_and_reports_invalid_records(tmp_path):
-    """混合損壞課程 fixture 時保留有效資料並回報各筆錯誤"""
+    """T-F6-E12 混合損壞課程 fixture 時保留有效資料並回報各筆錯誤"""
     _write_json(tmp_path / "classrooms.json", [{
         "room_id": "EE-101", "name": "電機館 101 教室", "building": "EE",
         "capacity": 60, "equipment": [], "unavailable_slots": [], "status": "active"
