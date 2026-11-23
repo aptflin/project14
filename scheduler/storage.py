@@ -1,18 +1,18 @@
 import json
 import os
-import re
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-
-VALID_SLOTS_DAYS = set(range(1, 8))
-VALID_SLOTS_PERIODS = set(list("123456789abc"))
-VALID_EQUIPMENT = {
-    "projector", "microphone", "computer",
-    "whiteboard", "speaker", "video_conf"
-}
+from .models import Activity, Course, Student, SystemData
+from .result import ErrorItem, Result
+from .validators import (
+    _validate_activity, _validate_classroom, _validate_course,
+    _validate_enrollment, _validate_student,
+)
 
 
 @dataclass
@@ -30,12 +30,18 @@ class FileLoadSummary:
     file_missing: bool = False
     corrupt_backup: str | None = None
     skipped: list[LoadSkipItem] = field(default_factory=list)
+    errors: list[ErrorItem] = field(default_factory=list)
 
 
 @dataclass
 class LoadReport:
     summaries: dict[str, FileLoadSummary] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+
+    @property
+    def safe_to_save(self) -> bool:
+        """檔案讀取或格式有問題時，介面應暫停寫入以免掩蓋缺失資料。"""
+        return not any(summary.errors for summary in self.summaries.values())
 
     def format_text(self) -> str:
         lines = ["資料載入報告"]
@@ -50,7 +56,7 @@ class LoadReport:
             if not s:
                 continue
             if s.file_missing:
-                lines.append(f"{fname:<17} 檔案不存在，以空資料開始")
+                lines.append(f"{fname:<17} [FILE_NOT_FOUND] 檔案不存在，以空資料開始")
             elif s.corrupt_backup:
                 lines.append(
                     f"{fname:<17} JSON 語法毀損，已備份為 {s.corrupt_backup} 並以空資料開始"
@@ -63,267 +69,17 @@ class LoadReport:
                     lines.append(f"  第 {item.index} 筆 [{item.code}] {item.message}")
         for w in self.warnings:
             lines.append(f"[WARNING] {w}")
+        for summary in self.summaries.values():
+            lines.extend(f"[{error.code}] {summary.filename}：{error.message}" for error in summary.errors)
         return "\n".join(lines)
 
 
-@dataclass
-class StorageSystemData:
-    courses: dict[str, dict[str, Any]] = field(default_factory=dict)
-    students: dict[str, dict[str, Any]] = field(default_factory=dict)
-    classrooms: dict[str, dict[str, Any]] = field(default_factory=dict)
-    activities: dict[str, dict[str, Any]] = field(default_factory=dict)
-    enrollment_log: list[dict[str, Any]] = field(default_factory=list)
+# 舊版 import 保持相容，但現在與 F5 使用同一個 SystemData 類別。
+StorageSystemData = SystemData
 
 
-def _is_valid_slot(slot_str: Any) -> bool:
-    if not isinstance(slot_str, str):
-        return False
-    parts = slot_str.strip().lower().split("-")
-    if len(parts) != 2:
-        return False
-    day_s, period_s = parts
-    if not day_s.isdigit() or int(day_s) not in VALID_SLOTS_DAYS:
-        return False
-    return period_s in VALID_SLOTS_PERIODS
-
-
-def _is_int_strict(val: Any) -> bool:
-    return isinstance(val, int) and not isinstance(val, bool)
-
-
-def _validate_classroom(rec: Any, existing_ids: set[str]) -> tuple[bool, str, str, dict[str, Any]]:
-    if not isinstance(rec, dict):
-        return False, "RECORD_INVALID", "紀錄必須為 JSON 物件", {}
-    required = ["room_id", "name", "building", "capacity", "equipment", "unavailable_slots", "status"]
-    for k in required:
-        if k not in rec:
-            return False, "MISSING_FIELD", f"缺少必填欄位 {k}", {}
-
-    room_id = str(rec["room_id"]).strip().upper()
-    if not re.match(r"^[A-Z]{2,4}-[0-9]{3}$", room_id):
-        return False, "INVALID_ID_FORMAT", f"教室代號 {room_id} 格式不合法", {}
-    if room_id in existing_ids:
-        return False, "DUPLICATE_ID", f"教室代號 {room_id} 重複", {}
-
-    if not isinstance(rec["name"], str) or not (1 <= len(rec["name"].strip()) <= 50):
-        return False, "RECORD_INVALID", f"{room_id} 名稱長度不合法", {}
-    building = str(rec["building"]).strip().upper()
-    if building != room_id.split("-")[0]:
-        return False, "RECORD_INVALID", f"{room_id} 所屬建築 {building} 與代號前綴不符", {}
-    if not _is_int_strict(rec["capacity"]) or rec["capacity"] < 1:
-        return False, "RECORD_INVALID", f"{room_id} 容量須為 >= 1 的整數", {}
-    if not isinstance(rec["equipment"], list) or any(e not in VALID_EQUIPMENT for e in rec["equipment"]):
-        return False, "RECORD_INVALID", f"{room_id} 設備清單包含不合法代碼", {}
-    if not isinstance(rec["unavailable_slots"], list) or any(not _is_valid_slot(s) for s in rec["unavailable_slots"]):
-        return False, "INVALID_SLOT", f"{room_id} 停用時段格式不合法", {}
-    if rec["status"] not in {"active", "disabled"}:
-        return False, "RECORD_INVALID", f"{room_id} 狀態不合法", {}
-
-    clean = {
-        "room_id": room_id,
-        "name": rec["name"].strip(),
-        "building": building,
-        "capacity": rec["capacity"],
-        "equipment": list(dict.fromkeys(rec["equipment"])),
-        "unavailable_slots": [s.strip().lower() for s in rec["unavailable_slots"]],
-        "status": rec["status"],
-    }
-    return True, "", "", clean
-
-
-def _validate_course(
-    rec: Any, existing_codes: set[str], classrooms: dict[str, dict[str, Any]]
-) -> tuple[bool, str, str, dict[str, Any]]:
-    if not isinstance(rec, dict):
-        return False, "RECORD_INVALID", "紀錄必須為 JSON 物件", {}
-    required = ["code", "name", "credits", "type", "teacher", "capacity", "room_id", "slots", "status"]
-    for k in required:
-        if k not in rec:
-            return False, "MISSING_FIELD", f"缺少必填欄位 {k}", {}
-
-    code = str(rec["code"]).strip().upper()
-    if not re.match(r"^[A-Z]{2,4}[0-9]{3}$", code):
-        return False, "INVALID_ID_FORMAT", f"課程代號 {code} 格式不合法", {}
-    if code in existing_codes:
-        return False, "DUPLICATE_ID", f"課程代號 {code} 重複", {}
-
-    if not isinstance(rec["name"], str) or not (1 <= len(rec["name"].strip()) <= 50):
-        return False, "RECORD_INVALID", f"{code} 課程名稱不合法", {}
-    if not _is_int_strict(rec["credits"]) or not (1 <= rec["credits"] <= 6):
-        return False, "RECORD_INVALID", f"{code} 學分須為 1~6 整數", {}
-    if rec["type"] not in {"required", "elective"}:
-        return False, "RECORD_INVALID", f"{code} 必選修類型不合法", {}
-    if not isinstance(rec["teacher"], str) or not (1 <= len(rec["teacher"].strip()) <= 50):
-        return False, "RECORD_INVALID", f"{code} 授課教師不合法", {}
-    if not _is_int_strict(rec["capacity"]) or rec["capacity"] < 1:
-        return False, "RECORD_INVALID", f"{code} 修課人數上限不合法", {}
-
-    room_id = str(rec["room_id"]).strip().upper()
-    if room_id not in classrooms:
-        return False, "REFERENCE_MISSING", f"{code} 指定教室 {room_id} 不存在", {}
-    if rec["capacity"] > classrooms[room_id]["capacity"]:
-        return False, "RECORD_INVALID", f"{code} 人數上限超過教室 {room_id} 容量", {}
-
-    if not isinstance(rec["slots"], list) or len(rec["slots"]) < 1:
-        return False, "INVALID_SLOT", f"{code} 至少需有 1 個上課時段", {}
-    norm_slots = []
-    for s in rec["slots"]:
-        if not _is_valid_slot(s):
-            return False, "INVALID_SLOT", f"{code} 時段 {s!r} 不合法", {}
-        norm_slots.append(s.strip().lower())
-    if len(set(norm_slots)) != len(norm_slots):
-        return False, "INVALID_SLOT", f"{code} 時段重複", {}
-
-    if rec["status"] not in {"open", "cancelled"}:
-        return False, "RECORD_INVALID", f"{code} 狀態不合法", {}
-
-    clean = {
-        "code": code,
-        "name": rec["name"].strip(),
-        "credits": rec["credits"],
-        "type": rec["type"],
-        "teacher": rec["teacher"].strip(),
-        "capacity": rec["capacity"],
-        "room_id": room_id,
-        "slots": norm_slots,
-        "status": rec["status"],
-    }
-    return True, "", "", clean
-
-
-def _validate_student(rec: Any, existing_ids: set[str]) -> tuple[bool, str, str, dict[str, Any]]:
-    if not isinstance(rec, dict):
-        return False, "RECORD_INVALID", "紀錄必須為 JSON 物件", {}
-    required = ["student_id", "name", "dept_year", "credit_limit", "enrolled_courses"]
-    for k in required:
-        if k not in rec:
-            return False, "MISSING_FIELD", f"缺少必填欄位 {k}", {}
-
-    sid = str(rec["student_id"]).strip().upper()
-    if not re.match(r"^S[0-9]{3}$", sid):
-        return False, "INVALID_ID_FORMAT", f"學號 {sid} 格式不合法", {}
-    if sid in existing_ids:
-        return False, "DUPLICATE_ID", f"學號 {sid} 重複", {}
-
-    if not isinstance(rec["name"], str) or not (1 <= len(rec["name"].strip()) <= 50):
-        return False, "RECORD_INVALID", f"{sid} 姓名不合法", {}
-    if not isinstance(rec["dept_year"], str) or not (1 <= len(rec["dept_year"].strip()) <= 20):
-        return False, "RECORD_INVALID", f"{sid} 系級不合法", {}
-    if not _is_int_strict(rec["credit_limit"]) or not (1 <= rec["credit_limit"] <= 30):
-        return False, "RECORD_INVALID", f"{sid} 學分上限須為 1~30 整數", {}
-    if not isinstance(rec["enrolled_courses"], list) or any(not isinstance(c, str) for c in rec["enrolled_courses"]):
-        return False, "RECORD_INVALID", f"{sid} 已選課程清單型別錯誤", {}
-
-    clean = {
-        "student_id": sid,
-        "name": rec["name"].strip(),
-        "dept_year": rec["dept_year"].strip(),
-        "credit_limit": rec["credit_limit"],
-        "enrolled_courses": list(dict.fromkeys(c.strip().upper() for c in rec["enrolled_courses"])),
-    }
-    return True, "", "", clean
-
-
-def _validate_activity(
-    rec: Any, existing_ids: set[str], classrooms: dict[str, dict[str, Any]]
-) -> tuple[bool, str, str, dict[str, Any]]:
-    if not isinstance(rec, dict):
-        return False, "RECORD_INVALID", "紀錄必須為 JSON 物件", {}
-    required = [
-        "activity_id", "name", "activity_type", "date", "start_time",
-        "end_time", "recurrence", "expected_attendees", "required_equipment",
-        "room_id", "participants", "organizer", "status"
-    ]
-    for k in required:
-        if k not in rec:
-            return False, "MISSING_FIELD", f"缺少必填欄位 {k}", {}
-
-    aid = str(rec["activity_id"]).strip().upper()
-    if not re.match(r"^EV[0-9]{3}$", aid):
-        return False, "INVALID_ID_FORMAT", f"活動代號 {aid} 格式不合法", {}
-    if aid in existing_ids:
-        return False, "DUPLICATE_ID", f"活動代號 {aid} 重複", {}
-
-    if not isinstance(rec["name"], str) or not (1 <= len(rec["name"].strip()) <= 50):
-        return False, "RECORD_INVALID", f"{aid} 活動名稱不合法", {}
-    if rec["activity_type"] not in {"lecture", "club", "study_group", "competition", "other"}:
-        return False, "RECORD_INVALID", f"{aid} 活動類型不合法", {}
-    try:
-        datetime.strptime(str(rec["date"]), "%Y-%m-%d")
-    except ValueError:
-        return False, "RECORD_INVALID", f"{aid} 日期格式錯誤", {}
-    if not re.match(r"^\d{2}:\d{2}$", str(rec["start_time"])) or not re.match(r"^\d{2}:\d{2}$", str(rec["end_time"])):
-        return False, "RECORD_INVALID", f"{aid} 時間格式錯誤", {}
-    if rec["start_time"] < "08:10" or rec["end_time"] > "20:00" or rec["end_time"] <= rec["start_time"]:
-        return False, "RECORD_INVALID", f"{aid} 時間區間不合法", {}
-    if rec["recurrence"] not in {"once", "weekly"}:
-        return False, "RECORD_INVALID", f"{aid} 重複類型不合法", {}
-    if not _is_int_strict(rec["expected_attendees"]) or rec["expected_attendees"] < 1:
-        return False, "RECORD_INVALID", f"{aid} 預計人數不合法", {}
-    if not isinstance(rec["required_equipment"], list) or any(e not in VALID_EQUIPMENT for e in rec["required_equipment"]):
-        return False, "RECORD_INVALID", f"{aid} 需求設備不合法", {}
-
-    room_id = rec["room_id"]
-    if room_id is not None:
-        room_id = str(room_id).strip().upper()
-        if room_id not in classrooms:
-            return False, "REFERENCE_MISSING", f"{aid} 配置教室 {room_id} 不存在", {}
-
-    if not isinstance(rec["participants"], list) or any(not isinstance(p, str) for p in rec["participants"]):
-        return False, "RECORD_INVALID", f"{aid} 報名名單型別錯誤", {}
-    if not isinstance(rec["organizer"], str) or not (1 <= len(rec["organizer"].strip()) <= 50):
-        return False, "RECORD_INVALID", f"{aid} 主辦人欄位不合法", {}
-    if rec["status"] not in {"scheduled", "cancelled"}:
-        return False, "RECORD_INVALID", f"{aid} 活動狀態不合法", {}
-
-    clean = {
-        "activity_id": aid,
-        "name": rec["name"].strip(),
-        "activity_type": rec["activity_type"],
-        "date": str(rec["date"]),
-        "start_time": str(rec["start_time"]),
-        "end_time": str(rec["end_time"]),
-        "recurrence": rec["recurrence"],
-        "expected_attendees": rec["expected_attendees"],
-        "required_equipment": list(dict.fromkeys(rec["required_equipment"])),
-        "room_id": room_id,
-        "participants": list(dict.fromkeys(p.strip().upper() for p in rec["participants"])),
-        "organizer": rec["organizer"].strip(),
-        "status": rec["status"],
-    }
-    return True, "", "", clean
-
-
-def _validate_enrollment(
-    rec: Any,
-    students: dict[str, dict[str, Any]],
-    courses: dict[str, dict[str, Any]],
-) -> tuple[bool, str, str, dict[str, Any]]:
-    if not isinstance(rec, dict):
-        return False, "RECORD_INVALID", "紀錄必須為 JSON 物件", {}
-    for k in ["timestamp", "student_id", "course_code", "action"]:
-        if k not in rec:
-            return False, "MISSING_FIELD", f"缺少必填欄位 {k}", {}
-
-    sid = str(rec["student_id"]).strip().upper()
-    code = str(rec["course_code"]).strip().upper()
-    if sid not in students:
-        return False, "REFERENCE_MISSING", f"學號 {sid} 不存在，已略過", {}
-    if code not in courses:
-        return False, "REFERENCE_MISSING", f"課程 {code} 不存在，已略過", {}
-    if rec["action"] not in {"add", "drop", "auto_drop"}:
-        return False, "RECORD_INVALID", f"操作類型 {rec['action']} 不合法", {}
-    if not isinstance(rec["timestamp"], str) or not rec["timestamp"].strip():
-        return False, "RECORD_INVALID", "timestamp 不可為空", {}
-
-    clean = {
-        "timestamp": rec["timestamp"].strip(),
-        "student_id": sid,
-        "course_code": code,
-        "action": rec["action"],
-        "reason": str(rec.get("reason", "")),
-    }
-    return True, "", "", clean
+def _reject_constant(value: str) -> None:
+    raise ValueError(f"JSON 不接受非有限數值 {value}")
 
 
 def _read_raw_records(filepath: str, filename: str) -> tuple[list[Any] | None, FileLoadSummary]:
@@ -334,21 +90,25 @@ def _read_raw_records(filepath: str, filename: str) -> tuple[list[Any] | None, F
 
     try:
         with open(filepath, "r", encoding="utf-8") as f:
-            payload = json.load(f)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        backup_name = f"{filename}.corrupt-{ts}"
-        backup_path = os.path.join(os.path.dirname(filepath), backup_name)
-        os.replace(filepath, backup_path)
-        summary.corrupt_backup = backup_name
+            payload = json.load(f, parse_constant=_reject_constant)
+    except (ValueError, UnicodeDecodeError):
+        summary.errors.append(ErrorItem("JSON_SYNTAX", "JSON 語法或 UTF-8 編碼錯誤，以空資料開始"))
+        try:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            backup_name = f"{filename}.corrupt-{ts}-{uuid4().hex[:8]}"
+            backup_path = os.path.join(os.path.dirname(filepath), backup_name)
+            os.replace(filepath, backup_path)
+            summary.corrupt_backup = backup_name
+        except OSError as exc:
+            summary.errors.append(ErrorItem("SAVE_FAILED", f"無法搬移毀損檔，原檔保留：{exc}"))
+        return None, summary
+    except OSError as exc:
+        summary.errors.append(ErrorItem("RECORD_INVALID", f"無法讀取檔案：{exc}"))
         return None, summary
 
-    if not isinstance(payload, dict) or not isinstance(payload.get("records"), list):
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        backup_name = f"{filename}.corrupt-{ts}"
-        backup_path = os.path.join(os.path.dirname(filepath), backup_name)
-        os.replace(filepath, backup_path)
-        summary.corrupt_backup = backup_name
+    if (not isinstance(payload, dict) or type(payload.get("schema_version")) is not int
+            or payload.get("schema_version") != 1 or not isinstance(payload.get("records"), list)):
+        summary.errors.append(ErrorItem("RECORD_INVALID", "須為 schema_version=1 與 records 清單；原檔未更動"))
         return None, summary
 
     records = payload["records"]
@@ -356,15 +116,27 @@ def _read_raw_records(filepath: str, filename: str) -> tuple[list[Any] | None, F
     return records, summary
 
 
+def _safe_validate(validator, rec, *args):
+    """單筆型別不合法也只略過該筆，不讓 unhashable 等例外中斷載入。"""
+    try:
+        return validator(rec, *args)
+    except (TypeError, ValueError, KeyError, OverflowError) as exc:
+        return False, "RECORD_INVALID", f"欄位型別或內容不合法：{exc}", {}
+
+
 def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
-    """載入資料夾內所有系統 JSON 檔案，執行單筆容錯與參照完整性檢查。"""
+    """讀取五類 v1 JSON，回傳 (SystemData, LoadReport)，不呼叫介面輸出。
+
+    缺檔以空資料開始；JSON_SYNTAX 保留原檔備份；單筆錯誤略過並記錄；
+    權限或格式錯誤寫入報告。呼叫者須查看 report.safe_to_save 才可自動儲存。
+    """
     data = StorageSystemData()
     report = LoadReport()
 
     recs, summary = _read_raw_records(os.path.join(data_dir, "classrooms.json"), "classrooms.json")
     if recs is not None:
         for idx, rec in enumerate(recs, start=1):
-            ok, code, msg, clean = _validate_classroom(rec, set(data.classrooms.keys()))
+            ok, code, msg, clean = _safe_validate(_validate_classroom, rec, set(data.classrooms.keys()))
             if ok:
                 data.classrooms[clean["room_id"]] = clean
                 summary.success_count += 1
@@ -375,9 +147,9 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
     recs, summary = _read_raw_records(os.path.join(data_dir, "courses.json"), "courses.json")
     if recs is not None:
         for idx, rec in enumerate(recs, start=1):
-            ok, code, msg, clean = _validate_course(rec, set(data.courses.keys()), data.classrooms)
+            ok, code, msg, clean = _safe_validate(_validate_course, rec, set(data.courses.keys()), data.classrooms)
             if ok:
-                data.courses[clean["code"]] = clean
+                data.courses[clean["code"]] = Course(**clean)
                 summary.success_count += 1
             else:
                 summary.skipped.append(LoadSkipItem(idx, code, msg))
@@ -386,7 +158,7 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
     recs, summary = _read_raw_records(os.path.join(data_dir, "students.json"), "students.json")
     if recs is not None:
         for idx, rec in enumerate(recs, start=1):
-            ok, code, msg, clean = _validate_student(rec, set(data.students.keys()))
+            ok, code, msg, clean = _safe_validate(_validate_student, rec, set(data.students.keys()))
             if ok:
                 valid_enrolled = []
                 for c_code in clean["enrolled_courses"]:
@@ -397,7 +169,7 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
                     else:
                         valid_enrolled.append(c_code)
                 clean["enrolled_courses"] = valid_enrolled
-                data.students[clean["student_id"]] = clean
+                data.students[clean["student_id"]] = Student(**clean)
                 summary.success_count += 1
             else:
                 summary.skipped.append(LoadSkipItem(idx, code, msg))
@@ -406,7 +178,7 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
     recs, summary = _read_raw_records(os.path.join(data_dir, "activities.json"), "activities.json")
     if recs is not None:
         for idx, rec in enumerate(recs, start=1):
-            ok, code, msg, clean = _validate_activity(rec, set(data.activities.keys()), data.classrooms)
+            ok, code, msg, clean = _safe_validate(_validate_activity, rec, set(data.activities.keys()), data.classrooms)
             if ok:
                 valid_participants = []
                 for p_id in clean["participants"]:
@@ -417,7 +189,13 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
                     else:
                         valid_participants.append(p_id)
                 clean["participants"] = valid_participants
-                data.activities[clean["activity_id"]] = clean
+                limit = clean["expected_attendees"]
+                if clean["room_id"] is not None:
+                    limit = min(limit, data.classrooms[clean["room_id"]]["capacity"])
+                if len(valid_participants) > limit:
+                    summary.skipped.append(LoadSkipItem(idx, "RECORD_INVALID", "活動有效報名人數超過活動或教室容量"))
+                    continue
+                data.activities[clean["activity_id"]] = Activity(**clean)
                 summary.success_count += 1
             else:
                 summary.skipped.append(LoadSkipItem(idx, code, msg))
@@ -426,7 +204,7 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
     recs, summary = _read_raw_records(os.path.join(data_dir, "enrollments.json"), "enrollments.json")
     if recs is not None:
         for idx, rec in enumerate(recs, start=1):
-            ok, code, msg, clean = _validate_enrollment(rec, data.students, data.courses)
+            ok, code, msg, clean = _safe_validate(_validate_enrollment, rec, data.students, data.courses)
             if ok:
                 data.enrollment_log.append(clean)
                 summary.success_count += 1
@@ -437,33 +215,200 @@ def load_all(data_dir: str = "data") -> tuple[StorageSystemData, LoadReport]:
     return data, report
 
 
-def _atomic_write_json(filepath: str, records: list[dict[str, Any]]) -> None:
-    os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
-    payload = {"schema_version": 1, "records": records}
-    dir_name = os.path.dirname(filepath) or "."
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=dir_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, filepath)
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-        raise
+
+@dataclass
+class SaveResult(Result):
+    """符合 Result 介面，同時支援既有 ok, message = save_all(...) 呼叫。"""
+
+    def __iter__(self):
+        yield self.ok
+        yield self.data if self.ok else "\n".join(
+            f"[{item.code}] {item.message}" for item in self.errors
+        )
 
 
-def save_all(data: StorageSystemData, data_dir: str = "data") -> tuple[bool, str]:
-    """將五類系統資料以暫存檔 + os.replace 原子方式寫入 JSON 檔案。"""
-    files_map = {
-        "classrooms.json": list(data.classrooms.values()),
-        "courses.json": list(data.courses.values()),
-        "students.json": list(data.students.values()),
-        "activities.json": list(data.activities.values()),
-        "enrollments.json": list(data.enrollment_log),
+def _record(value: object) -> dict:
+    if is_dataclass(value):
+        return asdict(value)
+    if isinstance(value, dict):
+        return dict(value)
+    raise TypeError("系統資料紀錄須為 dict 或 dataclass")
+
+
+def _file_records(data: SystemData) -> dict:
+    result = {
+        "classrooms.json": [_record(item) for item in data.classrooms.values()],
+        "courses.json": [_record(item) for item in data.courses.values()],
+        "students.json": [_record(item) for item in data.students.values()],
+        "activities.json": [_record(item) for item in data.activities.values()],
+        "enrollments.json": [_record(item) for item in data.enrollment_log],
     }
+    for activity in result["activities.json"]:
+        activity.pop("slots", None)  # 載入後時段快取不寫入 JSON。
+    for student in result["students.json"]:
+        student.pop("enrolledActivities", None)
+        student.pop("enrolled_activities", None)
+    for filename, records in result.items():
+        for record in records:
+            _normalise_output(record)
+    return result
+
+
+def _normalise_output(record: dict) -> None:
+    identifiers = ("code", "student_id", "room_id", "activity_id", "course_code", "building")
+    for key in identifiers:
+        if isinstance(record.get(key), str):
+            record[key] = record[key].strip().upper()
+    for key in ("enrolled_courses", "participants"):
+        if isinstance(record.get(key), list):
+            record[key] = [item.strip().upper() if isinstance(item, str) else item for item in record[key]]
+    for key in ("slots", "unavailable_slots"):
+        if isinstance(record.get(key), list):
+            record[key] = [item.strip().lower() if isinstance(item, str) else item for item in record[key]]
+    for key in ("name", "teacher", "dept_year", "organizer", "timestamp", "reason"):
+        if isinstance(record.get(key), str):
+            record[key] = record[key].strip()
+
+
+def _stage_bytes(folder: Path, content: bytes, prefix: str) -> Path:
+    fd, temporary = tempfile.mkstemp(prefix=prefix, suffix=".json", dir=folder)
+    path = Path(temporary)
     try:
-        for fname, records in files_map.items():
-            _atomic_write_json(os.path.join(data_dir, fname), records)
-        return True, "資料儲存成功"
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+    except (OSError, ValueError):
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
+def _restore_files(committed: list, originals: dict) -> list[str]:
+    errors = []
+    for target in reversed(committed):
+        backup = originals[target]
+        try:
+            if backup is None:
+                target.unlink(missing_ok=True)
+            else:
+                os.replace(backup, target)
+        except OSError as exc:
+            errors.append(f"還原 {target.name} 失敗；復原檔 {backup}：{exc}")
+    return errors
+
+
+def _write_transaction(payloads: dict[Path, object]) -> SaveResult:
+    stages, originals, committed = {}, {}, []
+    rollback_errors = []
+    try:
+        # 全部序列化成功後才建檔，拒絕 NaN／Infinity 與不可序列化物件。
+        encoded = {path: json.dumps(value, ensure_ascii=False, indent=2,
+                                   allow_nan=False).encode("utf-8")
+                   for path, value in payloads.items()}
+        for path, content in encoded.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            originals[path] = (_stage_bytes(path.parent, path.read_bytes(), ".rollback_")
+                               if path.exists() else None)
+            stages[path] = _stage_bytes(path.parent, content, ".tmp_")
+        for path, stage in stages.items():
+            os.replace(stage, path)
+            committed.append(path)
+        return SaveResult(True, "資料儲存成功")
+    except (OSError, TypeError, ValueError, OverflowError) as exc:
+        rollback_errors = _restore_files(committed, originals)
+        message = f"儲存失敗：{exc}"
+        if rollback_errors:
+            message += "；" + "；".join(rollback_errors)
+        return SaveResult(False, errors=[ErrorItem("SAVE_FAILED", message)])
+    finally:
+        temporary_paths = list(stages.values())
+        if not rollback_errors:
+            temporary_paths += [path for path in originals.values() if path]
+        for path in temporary_paths:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass  # 清理失敗不把已成功取代的檔案誤報成儲存失敗。
+
+
+def save_all(data: SystemData, data_dir: str = "data") -> SaveResult:
+    """以 UTF-8／indent=2 儲存五個 v1 JSON，回傳 Result。
+
+    全部暫存檔完成後才 os.replace；可捕捉的取代失敗會還原已取代檔案。
+    不修改 data；序列化或檔案錯誤回傳 SAVE_FAILED，不拋出到 CLI。
+    支援 models.SystemData 與舊 StorageSystemData 名稱、dict／dataclass 紀錄。
+    """
+    try:
+        folder = Path(data_dir)
+        records_by_file = _file_records(data)
+        _check_history(data, folder, records_by_file["enrollments.json"])
+        payloads = {folder / name: {"schema_version": 1, "records": records}
+                    for name, records in records_by_file.items()}
+    except (OSError, TypeError, ValueError, AttributeError) as exc:
+        return SaveResult(False, errors=[ErrorItem("SAVE_FAILED", str(exc))])
+    return _write_transaction(payloads)
+
+
+def _check_history(data: SystemData, folder: Path, incoming: list[dict]) -> None:
+    path = folder / "enrollments.json"
+    if not path.exists():
+        return
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle, parse_constant=_reject_constant)
+    if (not isinstance(payload, dict) or type(payload.get("schema_version")) is not int
+            or payload.get("schema_version") != 1 or not isinstance(payload.get("records"), list)):
+        raise ValueError("既有選課紀錄格式錯誤，拒絕覆寫")
+    previous = []
+    for record in payload["records"]:
+        ok, _, _, clean = _safe_validate(_validate_enrollment, record, data.students, data.courses)
+        if ok:
+            previous.append(clean)
+    if incoming[:len(previous)] != previous:
+        raise ValueError("有效選課紀錄只允許追加，不得修改或刪除既有歷程")
+
+
+class LegacyRecords(list):
+    """舊清單加上載入錯誤，讓舊選單能在資料不完整時拒絕修改。"""
+    def __init__(self, records=(), errors=()):
+        super().__init__(records)
+        self.load_errors = list(errors)
+
+
+def load_legacy_file(filename: str) -> LegacyRecords:
+    """讀取舊清單；缺檔回傳空清單，損壞檔備份且標記阻止自動儲存。"""
+    path = Path(filename)
+    if not path.exists():
+        return LegacyRecords()
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"), parse_constant=_reject_constant)
+        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+            return LegacyRecords(errors=["[RECORD_INVALID] 舊選單只接受物件清單；v1 資料請使用 main.py"])
+        return LegacyRecords(value)
+    except (ValueError, UnicodeDecodeError) as exc:
+        errors = [f"[JSON_SYNTAX] {path.name}：{exc}"]
+        try:
+            backup = path.with_name(path.name + ".corrupt-" + datetime.now().strftime("%Y%m%d_%H%M%S_%f") + "-" + uuid4().hex[:8])
+            os.replace(path, backup)
+            errors.append(f"已保留原檔：{backup.name}")
+        except OSError as backup_error:
+            errors.append(f"無法備份，原檔保留：{backup_error}")
+        return LegacyRecords(errors=errors)
     except OSError as exc:
-        return False, f"[SAVE_FAILED] 儲存失敗：{exc}"
+        return LegacyRecords(errors=[f"[RECORD_INVALID] {path.name}：{exc}"])
+
+
+def save_legacy_file(filename: str, records: list) -> SaveResult:
+    """舊版清單以暫存檔原子取代；保留舊格式，不轉換識別碼。"""
+    return _write_transaction({Path(filename): records})
+
+
+def initialize_demo(data_dir: str) -> SaveResult:
+    """只在五個目標檔皆不存在時建立示範資料，避免覆寫既有資料。"""
+    from .sample_data import create_sample_data
+
+    folder = Path(data_dir)
+    names = ("courses.json", "students.json", "classrooms.json", "activities.json", "enrollments.json")
+    if any((folder / name).exists() for name in names):
+        return SaveResult(False, errors=[ErrorItem("SAVE_FAILED", "資料夾已有資料檔，拒絕覆寫示範資料")])
+    return save_all(create_sample_data(), data_dir)

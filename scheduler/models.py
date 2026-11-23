@@ -1,11 +1,42 @@
 """F5 使用的規格 v1 資料類別；不儲存衍生人數與學生報名名單。"""
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 
 from .result import ErrorItem, Slot
 
 
-@dataclass
-class Course:
+class RecordMixin:
+    """資料類別相容舊版 record['field']，比較時忽略非儲存快取。"""
+    _transient_fields = ()
+
+    def __getitem__(self, key):
+        if key not in self.__dataclass_fields__:
+            raise KeyError(key)
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        if key not in self.__dataclass_fields__:
+            raise KeyError(key)
+        setattr(self, key, value)
+
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            record = dict(other)
+        elif is_dataclass(other) and not isinstance(other, type):
+            record = asdict(other)
+        else:
+            return NotImplemented
+        current = asdict(self)
+        for key in self._transient_fields:
+            current.pop(key, None)
+            record.pop(key, None)
+        return current == record
+
+
+@dataclass(eq=False)
+class Course(RecordMixin):
     code: str
     name: str
     credits: int
@@ -17,8 +48,8 @@ class Course:
     status: str = "open"
 
 
-@dataclass
-class Student:
+@dataclass(eq=False)
+class Student(RecordMixin):
     student_id: str
     name: str
     dept_year: str
@@ -26,8 +57,9 @@ class Student:
     enrolled_courses: list[str] = field(default_factory=list)
 
 
-@dataclass
-class Activity:
+@dataclass(eq=False)
+class Activity(RecordMixin):
+    _transient_fields = ("slots",)
     activity_id: str
     name: str
     date: str
@@ -39,6 +71,10 @@ class Activity:
     status: str = "scheduled"
     # 僅供舊資料轉接或載入後快取；不是規格 JSON 的儲存欄位。
     slots: list[str] = field(default_factory=list, repr=False)
+    activity_type: str = "other"
+    expected_attendees: int = 20
+    required_equipment: list[str] = field(default_factory=list)
+    organizer: str = "未指定"
 
 
 @dataclass

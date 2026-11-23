@@ -87,6 +87,10 @@ def _activities(records: list, student_records: list) -> dict[str, Activity]:
                             item.get("end_time", item.get("endTime", "")), item.get("recurrence", "weekly"),
                             item.get("room_id", item.get("roomId")), list(dict.fromkeys(participants)),
                             item.get("status", "scheduled"), _slots(item))
+        activity.activity_type = item.get("activity_type", item.get("activityType", "other"))
+        activity.expected_attendees = item.get("expected_attendees", item.get("expectedAttendees", 20))
+        activity.required_equipment = list(item.get("required_equipment", item.get("requiredEquipment", [])))
+        activity.organizer = item.get("organizer", "未指定")
         if activity.recurrence not in ("once", "weekly") or activity.status not in ("scheduled", "cancelled"):
             raise ValueError(f"{key} 活動狀態或重複方式不合法")
         _insert(activities, key, activity)
@@ -113,6 +117,9 @@ def system_data_from_records(courses: list | dict, students: list | dict,
 
 def normalise_data(data: SystemData) -> SystemData:
     """複製並正規化 SystemData 中的代號；不修改呼叫者的資料。"""
-    return system_data_from_records([asdict(item) for item in data.courses.values()],
-                                    [asdict(item) for item in data.students.values()],
-                                    [asdict(item) for item in data.activities.values()], [])
+    def record(item):
+        return dict(item) if isinstance(item, dict) else asdict(item)
+
+    return system_data_from_records([record(item) for item in data.courses.values()],
+                                    [record(item) for item in data.students.values()],
+                                    [record(item) for item in data.activities.values()], [])

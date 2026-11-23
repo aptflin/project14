@@ -26,15 +26,14 @@ python -B -X utf8 run_tests.py
 | `test_integration.py` | 建課→加選→課表，以及活動建立→報名→取消→課表 |
 | `test_review_regressions.py` | Code Review 發現的取消活動、單次日期及損壞活動檔案問題 |
 | `tests/test_f5_filter.py` | F5 條件聯集、全部排除原因、可行性、規格格式與選單整合 |
-| `tests/test_f6_storage_and_system.py` | F6 v1 JSON 儲存、逐筆容錯、損壞檔案備份、參照檢查及儲存錯誤 |
+| `tests/test_f6_storage_and_system.py` | F6 基本儲存、逐筆容錯、備份及參照檢查 |
+| `tests/test_f6_robustness.py` | F6 模型相容、I/O 故障、還原、自動儲存、歷程與跨模組整合 |
 
 所有測試使用記憶體或暫存資料，不會覆寫專案現有的課程、學生與活動 JSON。F1 僅測試目前已實作 API，未將尚未提供的學生 CRUD 或課程修改功能視為已完成。
 
-**既有問題狀態：**GitHub `d2a837f` 的 5 個回歸案例中，取消活動與單次日期的 4 個案例已由 F5 導入的共用衝突函式修正。目前仍有 1 項既有問題：`f1_system.py` 的 `loadData()` 遇到格式錯誤的 `activities.json` 會回傳空清單，舊選單仍可能因此判定加選成功並儲存 `students.json`。此問題與 F5 篩選功能無關，屬後續 F6 整合範圍。
+**既有問題狀態：**先前 5 項 Code Review 回歸問題均已修正。F6 已修正活動檔損壞仍可加選的問題：舊選單改由儲存層讀取，遇到讀取錯誤會阻止修改；新 v1 選單亦會在載入不完整時採唯讀保護。完整報告由 `python run_tests.py` 產生於 `test-results/`。
 
-**失敗案例詳情：**`test_review_regressions.py::ReviewRegressionTests::test_corrupt_activity_file_cannot_persist_enrollment` 預期活動檔案損壞時不得寫入學生資料；目前實際仍會儲存，因此此案例保持失敗，不略過。最近一次本機完整測試共 94 項，93 項通過、1 項失敗；F5 的 34 項 pytest 案例全部通過。HTML、JSON 與文字報告位於 `test-results/`。
-
-已加入 `.github/workflows/tests.yml`。將測試檔與 workflow 提交並推送至 GitHub 後，每次 push、pull request 或手動執行 Actions，都會在 Ubuntu／Windows、Python 3.11／3.12 上安裝依賴並執行全套測試，即使失敗也會上傳報告。既有檔案問題未修正前 Actions 會顯示失敗。
+GitHub Actions 在 Ubuntu／Windows、Python 3.11／3.12 安裝測試依賴並執行全套測試；本機新增內容推送後才會在 GitHub 生效。
 
 本機報告與 Python 快取已加入 `.gitignore`，不需提交。
 
@@ -60,25 +59,35 @@ python -m pytest tests/test_f5_filter.py -m boundary
 
 目前新增 34 個 F5 案例；完整一鍵報告可用原本的 `python run_tests.py`，會合併 F1–F5 結果。詳細介面、需求對照與範例見 [F5 說明](docs/f5.md)。
 
-## F6：系統資料儲存與載入
+## F6 資料儲存與系統測試
 
-F6 的儲存模組位於 `scheduler/storage.py`，提供 `StorageSystemData`、`load_all(data_dir)` 與 `save_all(data, data_dir)`。資料採 `schema_version: 1` 搭配 `records` 清單格式，分別處理 `classrooms.json`、`courses.json`、`students.json`、`activities.json` 和 `enrollments.json`。
-
-載入時會逐筆驗證資料、略過無效紀錄並產生 `LoadReport`；JSON 損壞時會先備份原檔。儲存時使用暫存檔與 `os.replace`，避免單一檔案寫入中途留下不完整內容。
-
-F6 測試位於 `tests/test_f6_storage_and_system.py`，涵蓋正常儲存載入、邊界值、無效資料、參照檢查及儲存失敗等情境。混合有效與錯誤課程資料的 fixture 位於 `tests/fixtures/broken/courses.json`。可單獨執行 F6 測試：
+v1 入口會載入五個檔案、顯示完整報告；成功加選、退選、活動報名或取消後，自動儲存所有資料。加退選追加 ISO 8601 歷程。預設資料夾為 `data/`，可用參數選擇其他資料夾：
 
 ```powershell
-python -m pytest -v tests/test_f6_storage_and_system.py
+python main.py
+python main.py --data-dir demo-data
 ```
 
-或透過專案測試 runner 執行並產生報告：
+第一次體驗可建立獨立示範資料（20 課、15 生、5 教室、10 活動）。目標有任何資料檔時會拒絕初始化，保留現有資料：
 
 ```powershell
-python run_tests.py --pattern test_f6_storage_and_system.py
+python main.py --init-demo --data-dir demo-data
+python main.py --data-dir demo-data
 ```
 
-目前 F6 儲存模組尚未取代 `f1_system.py` 的既有資料讀寫流程；兩者的資料欄位與格式不同，正式串接前仍需完成相容轉換。
+`load_all(data_dir)` 回傳 `(SystemData, LoadReport)`；`save_all(data, data_dir)` 回傳 `Result`，並保留舊版 `ok, message = save_all(...)` 相容呼叫。原 `StorageSystemData` 名稱為 `SystemData` 的相容別名。資料採 UTF-8、`schema_version=1`、`records` 清單與 snake_case 欄位，五類分檔保存。
+
+缺檔以空資料啟動並提示；毀損 JSON 保留為 `.corrupt-時間戳-識別碼`；單筆錯誤略過並記錄；遺失參照移除並警告。不支援版本、讀檔失敗或毀損資料會暫停該次選單的修改與儲存，避免把未完整載入的資料覆寫回去。
+
+儲存先完成所有暫存檔，再逐檔 `os.replace`；可捕捉的失敗會還原先前已取代的檔案。記憶體資料只在存檔成功後提交。若連還原也失敗，錯誤訊息會列出保留的復原檔路徑。
+
+```powershell
+python -m pip install -r requirements.txt
+python -m pytest -v tests/test_f6_storage_and_system.py tests/test_f6_robustness.py
+python run_tests.py
+```
+
+需求對照、介面與復原方式見 [F6 說明](docs/f6.md)。既有 `python f1_system.py` 選單繼續使用原來根目錄的 camelCase 清單，改用原子儲存與讀取錯誤保護；不會自動遷移、改名或覆寫你目前的課程及學生資料。新 v1 入口使用的 `data/`／`demo-data/` 與舊資料分開。
 
 執行系統本身使用 Python 3 標準函式庫；執行完整測試需另外安裝 `requirements.txt` 中的 pytest。請先切換到本專案目錄，再執行：
 
