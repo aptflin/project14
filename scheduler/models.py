@@ -1,4 +1,4 @@
-"""F5 使用的規格 v1 資料類別；不儲存衍生人數與學生報名名單。"""
+"""規格 v1 資料與 F5/F7 規劃結果；不儲存衍生人數與學生報名名單。"""
 from dataclasses import asdict, dataclass, field, is_dataclass
 
 from .result import ErrorItem, Slot
@@ -129,3 +129,47 @@ class FilterReport:
     required_credits: int = 0
     available_credits: int = 0
     feasible: bool = False
+
+
+@dataclass(frozen=True)
+class ScoreWeights:
+    """F7 軟性偏好的非負權重；總分愈高愈好。"""
+    days: float = 5
+    gaps: float = 2
+    early: float = 3
+    span: float = 1
+    preferred_courses: float = 10
+    preferred_days: float = 5
+
+
+@dataclass(frozen=True)
+class ScheduleScore:
+    days: int
+    gaps: int
+    early: int
+    span: int
+    preferred_course_ratio: float
+    preferred_day_ratio: float
+    total: float
+
+
+@dataclass
+class ScheduleOption:
+    course_codes: list[str]
+    added_courses: list[str]
+    total_credits: int
+    score: ScheduleScore
+    occupancies: list[Occupancy] = field(default_factory=list)
+
+
+@dataclass
+class OptimizerReport:
+    student_id: str
+    student_name: str
+    filter_report: FilterReport
+    weights: ScoreWeights
+    preferred_courses: list[str]
+    top_k: int | None
+    schedules: list[ScheduleOption] = field(default_factory=list)
+    feasible_count: int = 0
+    visited_nodes: int = 0

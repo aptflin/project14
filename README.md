@@ -28,6 +28,7 @@ python -B -X utf8 run_tests.py
 | `tests/test_f5_filter.py` | F5 條件聯集、全部排除原因、可行性、規格格式與選單整合 |
 | `tests/test_f6_storage_and_system.py` | F6 基本儲存、逐筆容錯、備份及參照檢查 |
 | `tests/test_f6_robustness.py` | F6 模型相容、I/O 故障、還原、自動儲存、歷程與跨模組整合 |
+| `tests/test_f7_optimizer.py` | F7 完整搜尋、硬性限制、評分、同分排序、活動日期及新舊 CLI |
 
 所有測試使用記憶體或暫存資料，不會覆寫專案現有的課程、學生與活動 JSON。F1 僅測試目前已實作 API，未將尚未提供的學生 CRUD 或課程修改功能視為已完成。
 
@@ -194,3 +195,11 @@ F3 只提供函式，不修改 `f1_system.py` 的選單；選單整合由組長�
 ```powershell
 python -m unittest -v test_f3_system test_f4_system
 ```
+
+## F7 最佳課表搜尋
+
+執行 `python main.py --data-dir demo-data` 選 **9**；首次可先用 `python main.py --init-demo --data-dir demo-data` 建立獨立示範資料。使用根目錄舊資料則執行 `python f1_system.py` 選 **12**。
+
+輸入必修、候選選修、學分範圍、禁止時段與偏好後，F7 會完整搜尋所有可行組合，預設顯示前 5 組排名、評分明細及 7 × 12 課表。可調整到校天數、空堂、早八、集中跨度、偏好課程比例與偏好星期的權重；同分依固定規則排序。已選課程及活動固定保留，搜尋不會自動加退選或存檔。
+
+四份 PDF 的 v1 尚未定案評分權重、同分排序及輸出組數，本次預設與服務介面詳見 [F7 說明](docs/f7.md)。驗收執行 `python -m pytest -v tests/test_f7_optimizer.py`；全套報告仍用 `python -B -X utf8 run_tests.py`。
