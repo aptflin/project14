@@ -1,4 +1,4 @@
-"""F5 命令列輸入輸出；既有選單呼叫本模組，不混入服務層。"""
+"""F1–F7 命令列輸入輸出；既有選單呼叫本模組，不混入服務層。"""
 import re
 
 from f5_system import filterCourses
@@ -9,6 +9,9 @@ from .storage import save_all
 from .result import ErrorItem, Result
 from .operations import apply_operation
 from .storage_bridge import legacy_views, record_dict
+from .optimizer import search_best_timetables
+from .optimizer_display import format_optimizer_report
+from .models import ScoreWeights, SystemData
 
 
 def _tokens(text: str) -> list[str]:
@@ -53,6 +56,41 @@ def show_load_report(report) -> None:
         print("資料檔有錯誤，本次工作階段暫停修改與儲存；請確認報告與備份後重新啟動。")
 
 
+def run_optimizer(data: SystemData) -> None:
+    """收集 F7 條件與可調權重，顯示排名、課表及錯誤，不儲存資料。"""
+    print("\n--- F7 最佳課表搜尋 ---")
+    sid = input("學號：").strip().upper()
+    desired = _tokens(input("候選選修課程（逗號或空白分隔，可留空）："))
+    required = _tokens(input("必修課程（逗號或空白分隔，可留空）："))
+    minimum = input("最低總學分（預設 0，包含已選）：").strip()
+    maximum = input("最高總學分（預設學生上限）：").strip()
+    blocked = _tokens(input("不可上課時段（如 2-3,5-a；星期五全天 5-*）："))
+    days = _tokens(input("偏好星期（如 1,2,3；留空不限）："))
+    preferred = _tokens(input("偏好課程（留空採候選選修清單）："))
+    limit = input("顯示前幾組（預設 5；all 為全部）：").strip().lower()
+    weight_text = _tokens(input("權重：到校天數,空堂,早八,跨度,偏好課程,偏好星期（預設 5,2,3,1,10,5）："))
+    try:
+        student = data.students.get(sid)
+        credit_limit = record_dict(student)["credit_limit"] if student else 25
+        forbidden = []
+        for slot in blocked:
+            forbidden.extend([f"{slot[0]}-{p}" for p in PERIODS]
+                             if re.fullmatch(r"[1-7]-\*", slot) else [slot])
+        criteria = FilterCriteria(desired, required, int(minimum or 0),
+                                  int(maximum) if maximum else credit_limit,
+                                  forbidden, [int(day) for day in days])
+        if weight_text and len(weight_text) != 6:
+            raise ValueError("權重須輸入六個數值")
+        weights = ScoreWeights(*map(float, weight_text)) if weight_text else ScoreWeights()
+        top_k = None if limit == "all" else int(limit or 5)
+    except (ValueError, TypeError) as exc:
+        print(f"[INVALID_VALUE] 輸入格式錯誤：{exc}")
+        return
+    result = search_best_timetables(data, sid, criteria, weights=weights,
+                                    preferred_courses=preferred or None, top_k=top_k)
+    print(format_optimizer_report(result))
+
+
 def show_initialization(result: Result) -> None:
     """顯示示範資料初始化結果，不隱藏覆寫保護錯誤。"""
     print(result.data if result.ok else "\n".join(f"[{error.code}] {error.message}" for error in result.errors))
@@ -83,7 +121,7 @@ def run(data, data_dir: str = "data", writable: bool = True) -> None:
     while True:
         print("\n--- v1 選課系統／F6 資料儲存 ---")
         print("1. 查詢課程  2. 加選  3. 退選  4. 報名活動  5. F5篩選")
-        print("6. 資料摘要  7. 取消活動  8. 手動儲存  0. 離開")
+        print("6. 資料摘要  7. 取消活動  8. 手動儲存  9. F7最佳課表搜尋  0. 離開")
         try:
             choice = input("請選擇操作：").strip()
             if choice == "0":
@@ -95,6 +133,8 @@ def run(data, data_dir: str = "data", writable: bool = True) -> None:
                 run_filter(views["courses"], views["students"], views["activities"], views["classrooms"])
             elif choice == "6":
                 print(f"課程 {len(data.courses)}、學生 {len(data.students)}、教室 {len(data.classrooms)}、活動 {len(data.activities)}、選課紀錄 {len(data.enrollment_log)}")
+            elif choice == "9":
+                run_optimizer(data)
             elif choice in actions or choice == "8":
                 if not writable:
                     print("[SAVE_FAILED] 載入資料不完整，拒絕修改與儲存。")
@@ -156,6 +196,7 @@ def run_legacy():
         print("9. 檢查所有教室衝堂")
         print("10. 列出活動")
         print("11. 多條件課程篩選與可行性檢查 (F5)")
+        print("12. 最佳課表搜尋 (F7)")
         print("0. 離開系統")
 
         choice = input("請選擇操作: ").strip()
@@ -313,6 +354,15 @@ def run_legacy():
         elif choice == "11":
             from scheduler.cli import run_filter
             run_filter(courses, students, activities, classrooms)
+
+        elif choice == "12":
+            from .adapters import system_data_from_records
+            try:
+                data = system_data_from_records(courses, students, activities, classrooms)
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
+                print(f"[INVALID_VALUE] 資料無法載入：{exc}")
+                continue
+            run_optimizer(data)
 
         elif choice == "0":
             print("系統結束。")

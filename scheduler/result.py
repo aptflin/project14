@@ -1,4 +1,4 @@
-"""服務層統一回傳格式與 F5 使用的錯誤代碼。"""
+"""服務層統一回傳格式與 F5/F7 使用的錯誤代碼。"""
 from dataclasses import dataclass, field
 
 Slot = tuple[int, int]
@@ -16,6 +16,7 @@ REQUIRED_EXCEEDS_MAX = "REQUIRED_EXCEEDS_MAX"
 MIN_CREDITS_UNREACHABLE = "MIN_CREDITS_UNREACHABLE"
 STUDENT_TIME_CONFLICT = "STUDENT_TIME_CONFLICT"
 ACTIVITY_TIME_CONFLICT = "ACTIVITY_TIME_CONFLICT"
+NO_FEASIBLE_TIMETABLE = "NO_FEASIBLE_TIMETABLE"
 
 
 @dataclass
