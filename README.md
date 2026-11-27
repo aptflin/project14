@@ -202,4 +202,4 @@ python -m unittest -v test_f3_system test_f4_system
 
 輸入必修、候選選修、學分範圍、禁止時段與偏好後，F7 會完整搜尋所有可行組合，預設顯示前 5 組排名、評分明細及 7 × 12 課表。可調整到校天數、空堂、早八、集中跨度、偏好課程比例與偏好星期的權重；同分依固定規則排序。已選課程及活動固定保留，搜尋不會自動加退選或存檔。
 
-四份 PDF 的 v1 尚未定案評分權重、同分排序及輸出組數，本次預設與服務介面詳見 [F7 說明](docs/f7.md)。驗收執行 `python -m pytest -v tests/test_f7_optimizer.py`；全套報告仍用 `python -B -X utf8 run_tests.py`。
+本次預設與服務介面詳見 [F7 說明](docs/f7.md)。驗收執行 `python -m pytest -v tests/test_f7_optimizer.py`；全套報告仍用 `python -B -X utf8 run_tests.py`。
